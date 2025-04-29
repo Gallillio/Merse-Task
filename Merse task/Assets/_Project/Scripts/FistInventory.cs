@@ -23,6 +23,10 @@ public class FistInventory : MonoBehaviour
 
     public void ToggleInventory(InputAction.CallbackContext context)
     {
-        gameObject.SetActive(!gameObject.activeSelf);
+        if (transform.childCount > 0)
+        {
+            var child = transform.GetChild(0).gameObject;
+            child.SetActive(!child.activeSelf);
+        }
     }
 }
