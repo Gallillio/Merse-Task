@@ -7884,8 +7884,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 270, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0.22601318, y: 0.7090149}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0.22601318, y: 0.5689087}
+  m_SizeDelta: {x: 0, y: -280.2375}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &647954953
 MonoBehaviour:
@@ -9187,7 +9187,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 752097325}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.000059604645}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -9196,7 +9196,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 50, y: -50}
-  m_SizeDelta: {x: 200, y: 50}
+  m_SizeDelta: {x: 748.9, y: 288.76}
   m_Pivot: {x: 0, y: 1}
 --- !u!4 &756086973 stripped
 Transform:
@@ -23100,7 +23100,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c07ee43bd972db64c962a6e981ce1cd4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  geminiApiKey: AIzaSyAt4VWnJdO716yjpcfbPPTZRHC-RI3NdkM
+  geminiApiKey: 
   inputField: {fileID: 303339597}
   responseText: {fileID: 752097326}
   systemMessage: You are an NPC in a Game. You will be roleplaying as this character,
@@ -23109,6 +23109,7 @@ MonoBehaviour:
     never write bulletpoints or astriscs or anything of that nature, youll be simply
     talking in a small paragraph, youll be engaging with the user in a dialogue,
     so dont talk too much and get to the point.
+  inputAction: {fileID: -944628639613478452, guid: 0be0028c24f2a4c14a96b6aa39055933, type: 3}
 --- !u!4 &1953514026
 Transform:
   m_ObjectHideFlags: 0
