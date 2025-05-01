@@ -167,14 +167,14 @@ public class DisplayTalkButton : MonoBehaviour
         if (recordAction != null && recordAction.enabled)
         {
             recordAction.Disable();
-            Debug.Log($"Recording input disabled for {transform.parent.name} - player left NPC area");
+            // Debug.Log($"Recording input disabled for {transform.parent.name} - player left NPC area");
         }
 
         // Clear the conversation history when player leaves
         if (textGenerator != null && transform.parent != null)
         {
             textGenerator.ClearConversationHistoryForNPC(transform.parent.gameObject);
-            Debug.Log($"Cleared conversation history for {transform.parent.name}");
+            // Debug.Log($"Cleared conversation history for {transform.parent.name}");
         }
     }
 
@@ -269,8 +269,8 @@ public class DisplayTalkButton : MonoBehaviour
                 NPCInstruction npcInstructionComponent = npcObject?.GetComponent<NPCInstruction>();
                 string npcInstruction = npcInstructionComponent?.npcInstruction;
 
-                Debug.Log($"NPC Instructions for {transform.parent.name}: " +
-                    (string.IsNullOrEmpty(npcInstruction) ? "None" : npcInstruction));
+                // Debug.Log($"NPC Instructions for {transform.parent.name}: " +
+                //     (string.IsNullOrEmpty(npcInstruction) ? "None" : npcInstruction));
 
                 // Send the transcribed text to GPTManager
                 if (textGenerator != null)

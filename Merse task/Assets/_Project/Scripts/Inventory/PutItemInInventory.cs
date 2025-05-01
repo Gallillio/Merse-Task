@@ -6,6 +6,11 @@ using UnityEngine.XR.Interaction.Toolkit;
 public class PutItemInInventory : MonoBehaviour
 {
     private UnityEngine.XR.Interaction.Toolkit.Interactors.XRSocketInteractor socketInteractor;
+    private Transform collectablesParent;
+
+    // Track the currently held item
+    private Transform currentHeldItem;
+    private bool wasManuallyGrabbed = false;
 
     // Store original local scales before reparenting
     private Dictionary<Transform, Vector3> originalScales = new Dictionary<Transform, Vector3>();
@@ -13,18 +18,50 @@ public class PutItemInInventory : MonoBehaviour
     private void Awake()
     {
         socketInteractor = GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactors.XRSocketInteractor>();
+
+        // Find the Collectables GameObject
+        collectablesParent = GameObject.Find("Collectables")?.transform;
+        if (collectablesParent == null)
+        {
+            Debug.LogWarning("Collectables GameObject not found in scene!");
+        }
     }
 
     private void OnEnable()
     {
         socketInteractor.selectEntered.AddListener(OnSelectEntered);
         socketInteractor.selectExited.AddListener(OnSelectExited);
+
+        // Re-attach the item if we have one and it's not being held by something else
+        if (currentHeldItem != null)
+        {
+            // Check if the item is not being held by another interactor
+            var interactable = currentHeldItem.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseInteractable>();
+            if (interactable != null && !interactable.isSelected)
+            {
+                // Re-attach it to the socket
+                currentHeldItem.SetParent(transform, true);
+
+                // Re-apply the scale
+                if (originalScales.TryGetValue(currentHeldItem, out Vector3 originalScale))
+                {
+                    currentHeldItem.localScale = originalScale * 10f;
+                }
+
+                // Try to re-select it using the socket interactor
+                socketInteractor.StartManualInteraction(interactable as UnityEngine.XR.Interaction.Toolkit.Interactables.IXRSelectInteractable);
+                Debug.Log("Re-attached item to socket");
+            }
+        }
     }
 
     private void OnDisable()
     {
         socketInteractor.selectEntered.RemoveListener(OnSelectEntered);
         socketInteractor.selectExited.RemoveListener(OnSelectExited);
+
+        // Don't return the item to Collectables when socket is disabled
+        // The item will be re-attached when the socket is re-enabled
     }
 
     private void OnSelectEntered(SelectEnterEventArgs args)
@@ -34,9 +71,18 @@ public class PutItemInInventory : MonoBehaviour
 
         Transform selected = args.interactableObject.transform;
 
+        // Reset manual grab flag when new item enters socket
+        wasManuallyGrabbed = false;
+
+        // Track the current held item
+        currentHeldItem = selected;
+
         // Store original local scale before modifying
         if (!originalScales.ContainsKey(selected))
+        {
             originalScales[selected] = selected.localScale;
+            Debug.Log("Stored original scale: " + selected.localScale);
+        }
 
         // Store world scale before parenting
         Vector3 worldScale = selected.lossyScale;
@@ -45,14 +91,6 @@ public class PutItemInInventory : MonoBehaviour
         selected.SetParent(transform, true); // true = maintain world pos/rot
 
         selected.localScale *= 10f;
-
-        // Compensate for canvas/small parent scaling
-        // Vector3 parentScale = transform.lossyScale;
-        // selected.localScale = new Vector3(
-        //     worldScale.x / parentScale.x,
-        //     worldScale.y / parentScale.y,
-        //     worldScale.z / parentScale.z
-        // );
     }
 
     private void OnSelectExited(SelectExitEventArgs args)
@@ -62,11 +100,69 @@ public class PutItemInInventory : MonoBehaviour
 
         Transform selected = args.interactableObject.transform;
 
-        // Restore original scale if we stored it
-        if (originalScales.TryGetValue(selected, out Vector3 originalScale))
+        // Identify if exited by a hand/controller grab or by socket deactivation
+        var interactable = selected.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseInteractable>();
+
+        // Check if we're being deactivated
+        bool isSocketDeactivation = !gameObject.activeInHierarchy;
+
+        // Check if this is a manual grab by examining the args.interactorObject
+        // If the interactor is not null and it's not this socket, it's likely a manual grab
+        bool isManualGrab = args.interactorObject != null &&
+                           args.interactorObject.transform != socketInteractor.transform;
+
+        // Log what interactor is taking the item
+        if (isManualGrab)
         {
-            selected.localScale = originalScale;
-            originalScales.Remove(selected); // optional: clean up
+            Debug.Log("Item grabbed by: " + args.interactorObject.transform.name);
+            wasManuallyGrabbed = true;
+            Debug.Log("Item was manually grabbed");
+        }
+        else if (!isSocketDeactivation)
+        {
+            // If no interactor is currently selecting it, but it's not deactivation
+            // Likely grabbed by something else outside XR system, mark as manually grabbed
+            wasManuallyGrabbed = true;
+            Debug.Log("Item was grabbed by something else");
+        }
+
+        // Return to Collectables if it was manually grabbed by a hand or controller
+        if (collectablesParent != null && wasManuallyGrabbed)
+        {
+            // First reparent to Collectables
+            selected.SetParent(collectablesParent, true);
+            Debug.Log("Returned to Collectables");
+
+            // THEN restore original scale AFTER reparenting
+            if (originalScales.TryGetValue(selected, out Vector3 originalScale))
+            {
+                Debug.Log("Before scale restore: " + selected.localScale);
+                selected.localScale = originalScale;
+                Debug.Log("After scale restore: " + selected.localScale + ", Original: " + originalScale);
+            }
+            else
+            {
+                Debug.LogWarning("Failed to find original scale for " + selected.name);
+            }
+
+            // Clear reference and flag
+            if (currentHeldItem == selected)
+            {
+                currentHeldItem = null;
+                wasManuallyGrabbed = false;
+            }
+
+            // Also remove from scale dictionary if we're done with it
+            originalScales.Remove(selected);
+        }
+        else
+        {
+            // For non-manual exits, still restore scale but don't reparent
+            if (originalScales.TryGetValue(selected, out Vector3 originalScale))
+            {
+                Debug.Log("Non-manual exit - restoring scale to: " + originalScale);
+                selected.localScale = originalScale;
+            }
         }
     }
 }

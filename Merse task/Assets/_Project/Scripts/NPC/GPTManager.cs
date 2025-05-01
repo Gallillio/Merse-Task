@@ -73,7 +73,7 @@ public class GPTManager : MonoBehaviour
         if (!npcConversationHistories.ContainsKey(npcId))
         {
             npcConversationHistories[npcId] = new List<ChatMessage>();
-            Debug.Log($"Created new conversation history for NPC {npcId}");
+            // Debug.Log($"Created new conversation history for NPC {npcId}");
         }
 
         return npcConversationHistories[npcId];
@@ -124,7 +124,7 @@ public class GPTManager : MonoBehaviour
             if (npcInstructionComponent != null)
             {
                 npcInstruction = npcInstructionComponent.npcInstruction;
-                Debug.Log($"GPTManager using NPC instruction: {npcInstruction}");
+                // Debug.Log($"GPTManager using NPC instruction: {npcInstruction}");
             }
             else
             {
@@ -221,7 +221,7 @@ public class GPTManager : MonoBehaviour
             if (!string.IsNullOrEmpty(systemMessage))
             {
                 combinedSystemMessage += "\n" + npcInstruction;
-                Debug.Log($"Combined system message: {systemMessage} + NPC instruction: {npcInstruction}");
+                // Debug.Log($"Combined system message: {systemMessage} + NPC instruction: {npcInstruction}");
             }
             else
             {

@@ -8,7 +8,7 @@ public class NPCInstruction : MonoBehaviour
 
     [Header("UI References")]
     [Tooltip("Will be automatically assigned if not set")]
-    public TMP_Text responseText; // Each NPC has its own response text component
+    [HideInInspector] public TMP_Text responseText; // Each NPC has its own response text component
 
     private void Awake()
     {
