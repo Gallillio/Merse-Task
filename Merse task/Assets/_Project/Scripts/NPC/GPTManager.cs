@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
 using UnityEngine.Networking;
 using System.Collections;
@@ -14,7 +13,6 @@ public class GPTManager : MonoBehaviour
     public string geminiApiKey = "";
 
     [Header("UI References")]
-    public TMP_InputField inputField; // Assign in Inspector
     public TMP_Text responseText;     // Assign in Inspector
     [TextArea(2, 5)]
     public string systemMessage; // Set in Inspector
@@ -32,9 +30,8 @@ public class GPTManager : MonoBehaviour
 
     void Start()
     {
-        inputField.onSubmit.AddListener(OnInputSubmit);
         // Setup Input System action for advancing dialogue
-        advanceAction = inputAction.FindActionMap("Controller").FindAction("Primary Button"); // Use Menu for debug
+        advanceAction = inputAction.FindActionMap("Controller").FindAction("Primary Button");
         advanceAction.Enable();
         advanceAction.performed += OnAdvancePerformed;
     }
@@ -54,37 +51,37 @@ public class GPTManager : MonoBehaviour
 
     void Update()
     {
-        // Optionally, you can add a keyboard fallback for testing:
+        // Keyboard fallback for testing
         if (awaitingUserAdvance && Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame)
         {
-            Debug.Log("Enter key pressed: advancing dialogue");
             ShowNextSentence();
         }
     }
 
-    void OnInputSubmit(string userInput)
-    {
-        TrySendInput(userInput);
-    }
-
-    public void TrySendInput(string userInput)
+    public void TrySendInput(string userInput, GameObject npcObject = null)
     {
         if (!string.IsNullOrEmpty(userInput))
         {
             conversationHistory.Add(new ChatMessage { role = "user", content = userInput });
             responseText.text = "Thinking...";
 
-            // Find the NPC GameObject by traversing up from the inputField
-            Transform t = inputField.transform;
-            NPCInstruction npcInstructionComponent = null;
-            for (int i = 0; i < 3 && t != null; i++)
-                t = t.parent;
-            if (t != null)
-                npcInstructionComponent = t.GetComponent<NPCInstruction>();
-            string npcInstruction = npcInstructionComponent != null ? npcInstructionComponent.npcInstruction : null;
+            // Get NPC instructions from the provided NPC GameObject
+            string npcInstruction = null;
+            if (npcObject != null)
+            {
+                NPCInstruction npcInstructionComponent = npcObject.GetComponent<NPCInstruction>();
+                if (npcInstructionComponent != null)
+                {
+                    npcInstruction = npcInstructionComponent.npcInstruction;
+                    Debug.Log($"GPTManager using NPC instruction: {npcInstruction}");
+                }
+                else
+                {
+                    Debug.LogWarning("NPC GameObject doesn't have NPCInstruction component");
+                }
+            }
 
             RequestGeminiResponse(userInput, conversationHistory, OnGeminiResponse, npcInstruction);
-            inputField.text = ""; // Clear input
         }
     }
 
@@ -157,9 +154,19 @@ public class GPTManager : MonoBehaviour
         if (!string.IsNullOrEmpty(npcInstruction))
         {
             if (!string.IsNullOrEmpty(systemMessage))
+            {
                 combinedSystemMessage += "\n" + npcInstruction;
+                Debug.Log($"Combined system message: {systemMessage} + NPC instruction: {npcInstruction}");
+            }
             else
+            {
                 combinedSystemMessage = npcInstruction;
+                Debug.Log($"Using only NPC instruction (no system message): {npcInstruction}");
+            }
+        }
+        else
+        {
+            Debug.Log($"Using only system message (no NPC instruction): {systemMessage}");
         }
 
         // Add conversation history, but prepend system message to the first user message

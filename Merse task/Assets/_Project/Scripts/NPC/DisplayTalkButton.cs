@@ -176,10 +176,20 @@ public class DisplayTalkButton : MonoBehaviour
             {
                 Debug.Log("Transcription result: " + result.Result);
 
-                // Set the transcribed text to GPTManager's input field if available
-                if (textGenerator != null && textGenerator.inputField != null)
+                // Get the NPC GameObject (parent of this GameObject)
+                GameObject npcObject = transform.parent ? transform.parent.gameObject : null;
+
+                // Get the NPC instructions
+                NPCInstruction npcInstructionComponent = npcObject?.GetComponent<NPCInstruction>();
+                string npcInstruction = npcInstructionComponent?.npcInstruction;
+
+                Debug.Log("NPC Instructions: " + (string.IsNullOrEmpty(npcInstruction) ? "None" : npcInstruction));
+
+                // Send the transcribed text to GPTManager
+                if (textGenerator != null)
                 {
-                    textGenerator.TrySendInput(result.Result);
+                    // Pass the NPC GameObject with the NPCInstruction component
+                    textGenerator.TrySendInput(result.Result, npcObject);
                 }
             }
             else
