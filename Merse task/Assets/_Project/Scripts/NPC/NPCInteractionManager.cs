@@ -3,10 +3,10 @@ using Whisper;
 using Whisper.Utils;
 using UnityEngine.InputSystem;
 
-public class DisplayTalkButton : MonoBehaviour
+public class NPCInteractionManager : MonoBehaviour
 {
     // Static reference to track which NPC is currently active
-    private static DisplayTalkButton activeNPC = null;
+    private static NPCInteractionManager activeNPC = null;
 
     [Header("STT References")]
     public WhisperManager whisper;

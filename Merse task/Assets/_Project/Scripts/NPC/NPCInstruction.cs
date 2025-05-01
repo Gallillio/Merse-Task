@@ -22,25 +22,11 @@ public class NPCInstruction : MonoBehaviour
             {
                 // Get the TMP_Text component
                 responseText = responseTextObject.GetComponent<TMP_Text>();
-
-                // if (responseText == null)
-                // {
-                //     Debug.LogWarning($"Found 'GPT Response Text' object on {gameObject.name}, but it doesn't have a TMP_Text component");
-                // }
             }
             else
             {
                 // Try to find the TMP_Text component on any child
                 responseText = GetComponentInChildren<TMP_Text>();
-
-                // if (responseText == null)
-                // {
-                //     Debug.LogWarning($"NPC {gameObject.name} is missing a 'GPT Response Text' child with TMP_Text component. Responses won't be displayed.");
-                // }
-                // else
-                // {
-                //     Debug.Log($"NPC {gameObject.name} is using {responseText.gameObject.name} for responses");
-                // }
             }
         }
     }

@@ -50,7 +50,6 @@ public class PutItemInInventory : MonoBehaviour
 
                 // Try to re-select it using the socket interactor
                 socketInteractor.StartManualInteraction(interactable as UnityEngine.XR.Interaction.Toolkit.Interactables.IXRSelectInteractable);
-                Debug.Log("Re-attached item to socket");
             }
         }
     }
@@ -81,7 +80,6 @@ public class PutItemInInventory : MonoBehaviour
         if (!originalScales.ContainsKey(selected))
         {
             originalScales[selected] = selected.localScale;
-            Debug.Log("Stored original scale: " + selected.localScale);
         }
 
         // Store world scale before parenting
@@ -114,16 +112,13 @@ public class PutItemInInventory : MonoBehaviour
         // Log what interactor is taking the item
         if (isManualGrab)
         {
-            Debug.Log("Item grabbed by: " + args.interactorObject.transform.name);
             wasManuallyGrabbed = true;
-            Debug.Log("Item was manually grabbed");
         }
         else if (!isSocketDeactivation)
         {
             // If no interactor is currently selecting it, but it's not deactivation
             // Likely grabbed by something else outside XR system, mark as manually grabbed
             wasManuallyGrabbed = true;
-            Debug.Log("Item was grabbed by something else");
         }
 
         // Return to Collectables if it was manually grabbed by a hand or controller
@@ -131,14 +126,11 @@ public class PutItemInInventory : MonoBehaviour
         {
             // First reparent to Collectables
             selected.SetParent(collectablesParent, true);
-            Debug.Log("Returned to Collectables");
 
             // THEN restore original scale AFTER reparenting
             if (originalScales.TryGetValue(selected, out Vector3 originalScale))
             {
-                Debug.Log("Before scale restore: " + selected.localScale);
                 selected.localScale = originalScale;
-                Debug.Log("After scale restore: " + selected.localScale + ", Original: " + originalScale);
             }
             else
             {
@@ -160,7 +152,6 @@ public class PutItemInInventory : MonoBehaviour
             // For non-manual exits, still restore scale but don't reparent
             if (originalScales.TryGetValue(selected, out Vector3 originalScale))
             {
-                Debug.Log("Non-manual exit - restoring scale to: " + originalScale);
                 selected.localScale = originalScale;
             }
         }
