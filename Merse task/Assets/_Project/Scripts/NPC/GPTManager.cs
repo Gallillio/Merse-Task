@@ -6,14 +6,14 @@ using System.Text;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using UnityEngine.InputSystem; // For the new Input System
+using System;
 
 public class GPTManager : MonoBehaviour
 {
     [Header("Google Gemini API Key (for testing only, do not use in future)")]
     public string geminiApiKey = "";
 
-    [Header("UI References")]
-    public TMP_Text responseText;     // Assign in Inspector
+    [Header("System Configuration")]
     [TextArea(2, 5)]
     public string systemMessage; // Set in Inspector
 
@@ -21,7 +21,12 @@ public class GPTManager : MonoBehaviour
     public InputActionAsset inputAction; // Assign in Inspector
     private InputAction advanceAction;
 
-    private List<ChatMessage> conversationHistory = new List<ChatMessage>();
+    // Tracking the current NPC for responses
+    private GameObject currentNpcObject;
+    private TMP_Text currentResponseText;
+
+    // Dictionary to store conversation history for each NPC
+    private Dictionary<string, List<ChatMessage>> npcConversationHistories = new Dictionary<string, List<ChatMessage>>();
 
     // Sentence-by-sentence display fields
     private List<string> currentSentences = new List<string>();
@@ -43,7 +48,7 @@ public class GPTManager : MonoBehaviour
 
     private void OnAdvancePerformed(InputAction.CallbackContext ctx)
     {
-        if (awaitingUserAdvance)
+        if (awaitingUserAdvance && currentResponseText != null)
         {
             ShowNextSentence();
         }
@@ -52,46 +57,103 @@ public class GPTManager : MonoBehaviour
     void Update()
     {
         // Keyboard fallback for testing
-        if (awaitingUserAdvance && Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame)
+        if (awaitingUserAdvance && currentResponseText != null && Keyboard.current != null && Keyboard.current.enterKey.wasPressedThisFrame)
         {
             ShowNextSentence();
         }
     }
 
+    // Get or create a conversation history for a specific NPC
+    private List<ChatMessage> GetConversationHistoryForNPC(GameObject npcObject)
+    {
+        // Create a unique ID for this NPC (using instance ID)
+        string npcId = npcObject != null ? npcObject.GetInstanceID().ToString() : "default";
+
+        // If this NPC doesn't have a conversation history yet, create one
+        if (!npcConversationHistories.ContainsKey(npcId))
+        {
+            npcConversationHistories[npcId] = new List<ChatMessage>();
+            Debug.Log($"Created new conversation history for NPC {npcId}");
+        }
+
+        return npcConversationHistories[npcId];
+    }
+
+    // Clear conversation history for a specific NPC
+    public void ClearConversationHistoryForNPC(GameObject npcObject)
+    {
+        if (npcObject != null)
+        {
+            string npcId = npcObject.GetInstanceID().ToString();
+            if (npcConversationHistories.ContainsKey(npcId))
+            {
+                npcConversationHistories[npcId].Clear();
+                Debug.Log($"Cleared conversation history for NPC {npcId}");
+            }
+        }
+    }
+
     public void TrySendInput(string userInput, GameObject npcObject = null)
     {
-        if (!string.IsNullOrEmpty(userInput))
+        if (!string.IsNullOrEmpty(userInput) && npcObject != null)
         {
-            conversationHistory.Add(new ChatMessage { role = "user", content = userInput });
-            responseText.text = "Thinking...";
+            // Track the current NPC for responses
+            currentNpcObject = npcObject;
 
-            // Get NPC instructions from the provided NPC GameObject
-            string npcInstruction = null;
-            if (npcObject != null)
+            // Get the NPC's response text component
+            NPCInstruction npcInstructionComponent = npcObject.GetComponent<NPCInstruction>();
+            if (npcInstructionComponent != null && npcInstructionComponent.responseText != null)
             {
-                NPCInstruction npcInstructionComponent = npcObject.GetComponent<NPCInstruction>();
-                if (npcInstructionComponent != null)
-                {
-                    npcInstruction = npcInstructionComponent.npcInstruction;
-                    Debug.Log($"GPTManager using NPC instruction: {npcInstruction}");
-                }
-                else
-                {
-                    Debug.LogWarning("NPC GameObject doesn't have NPCInstruction component");
-                }
+                currentResponseText = npcInstructionComponent.responseText;
+                currentResponseText.text = "Thinking...";
+            }
+            else
+            {
+                Debug.LogError("NPC is missing NPCInstruction component or responseText! Cannot display response.");
+                return;
             }
 
-            RequestGeminiResponse(userInput, conversationHistory, OnGeminiResponse, npcInstruction);
+            // Get this NPC's conversation history
+            List<ChatMessage> npcConversationHistory = GetConversationHistoryForNPC(npcObject);
+
+            // Add user message to this NPC's conversation history
+            npcConversationHistory.Add(new ChatMessage { role = "user", content = userInput });
+
+            // Get NPC instructions
+            string npcInstruction = null;
+            if (npcInstructionComponent != null)
+            {
+                npcInstruction = npcInstructionComponent.npcInstruction;
+                Debug.Log($"GPTManager using NPC instruction: {npcInstruction}");
+            }
+            else
+            {
+                Debug.LogWarning("NPC GameObject doesn't have NPCInstruction component");
+            }
+
+            // Send the request with this NPC's conversation history
+            RequestGeminiResponse(userInput, npcConversationHistory, OnGeminiResponse, npcInstruction);
+        }
+        else
+        {
+            Debug.LogError("Cannot process input: " +
+                (string.IsNullOrEmpty(userInput) ? "Empty user input" : "No NPC object provided"));
         }
     }
 
     void OnGeminiResponse(string response)
     {
-        conversationHistory.Add(new ChatMessage { role = "model", content = response });
-
-        if (string.IsNullOrEmpty(response))
+        if (currentNpcObject != null)
         {
-            responseText.text = "Error getting response.";
+            // Add model response to this NPC's conversation history
+            List<ChatMessage> npcConversationHistory = GetConversationHistoryForNPC(currentNpcObject);
+            npcConversationHistory.Add(new ChatMessage { role = "model", content = response });
+        }
+
+        if (string.IsNullOrEmpty(response) || currentResponseText == null)
+        {
+            if (currentResponseText != null)
+                currentResponseText.text = "Error getting response.";
             awaitingUserAdvance = false;
             return;
         }
@@ -102,9 +164,9 @@ public class GPTManager : MonoBehaviour
         awaitingUserAdvance = true;
 
         if (currentSentences.Count > 0)
-            responseText.text = currentSentences[0];
+            currentResponseText.text = currentSentences[0];
         else
-            responseText.text = "";
+            currentResponseText.text = "";
     }
 
     private List<string> SplitIntoSentences(string text)
@@ -119,14 +181,17 @@ public class GPTManager : MonoBehaviour
 
     private void ShowNextSentence()
     {
+        if (currentResponseText == null)
+            return;
+
         currentSentenceIndex++;
         if (currentSentenceIndex < currentSentences.Count)
         {
-            responseText.text = currentSentences[currentSentenceIndex];
+            currentResponseText.text = currentSentences[currentSentenceIndex];
         }
         else
         {
-            responseText.text = "";
+            currentResponseText.text = "";
             awaitingUserAdvance = false;
         }
     }
@@ -242,14 +307,6 @@ public class GPTManager : MonoBehaviour
             Debug.LogError("Gemini API error: " + request.error);
             onResponse?.Invoke(null);
         }
-    }
-
-    // Helper to send a message using the NPC's instruction
-    public void RequestGeminiResponseWithNPC(GameObject npc, string message, List<ChatMessage> conversationHistory, System.Action<string> onResponse)
-    {
-        var npcInstructionComponent = npc.GetComponent<NPCInstruction>();
-        string npcInstruction = npcInstructionComponent != null ? npcInstructionComponent.npcInstruction : null;
-        RequestGeminiResponse(message, conversationHistory, onResponse, npcInstruction);
     }
 }
 

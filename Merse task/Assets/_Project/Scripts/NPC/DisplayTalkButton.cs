@@ -5,6 +5,9 @@ using UnityEngine.InputSystem;
 
 public class DisplayTalkButton : MonoBehaviour
 {
+    // Static reference to track which NPC is currently active
+    private static DisplayTalkButton activeNPC = null;
+
     [Header("STT References")]
     public WhisperManager whisper;
     public MicrophoneRecord microphoneRecord;
@@ -16,6 +19,7 @@ public class DisplayTalkButton : MonoBehaviour
     private string transcribedText = "";
     private bool hasSpeechBeenDetected = false;
     private InputAction recordAction;
+    private bool playerInTriggerArea = false;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -44,19 +48,16 @@ public class DisplayTalkButton : MonoBehaviour
             textGenerator = FindObjectOfType<GPTManager>();
         }
 
-        // Setup Input System for Secondary Button
+        // Setup Input System for Secondary Button (but don't enable it yet)
         if (inputAction != null)
         {
             recordAction = inputAction.FindActionMap("Controller").FindAction("Secondary Button");
-            recordAction.Enable();
 
-            // Start recording when button is pressed
-            recordAction.started += ctx => StartRecording();
+            // Don't enable yet - only when player enters trigger
 
-            // Stop recording when button is released
-            recordAction.canceled += ctx => StopRecording();
-
-            Debug.Log("Input system initialized for Secondary Button");
+            // Set up callbacks
+            recordAction.started += ctx => OnRecordButtonPressed();
+            recordAction.canceled += ctx => OnRecordButtonReleased();
         }
         else
         {
@@ -66,6 +67,12 @@ public class DisplayTalkButton : MonoBehaviour
 
     private void OnDestroy()
     {
+        // If this is the active NPC, clear the reference
+        if (activeNPC == this)
+        {
+            activeNPC = null;
+        }
+
         // Clean up event listeners
         if (microphoneRecord != null)
         {
@@ -78,8 +85,8 @@ public class DisplayTalkButton : MonoBehaviour
             whisper.OnNewSegment -= OnNewSegment;
         }
 
-        // Disable input action
-        if (recordAction != null)
+        // Disable input action if it was enabled
+        if (recordAction != null && recordAction.enabled)
         {
             recordAction.Disable();
         }
@@ -88,47 +95,119 @@ public class DisplayTalkButton : MonoBehaviour
     // Method to handle Voice Activity Detection changes
     private void OnVadChanged(bool isSpeechDetected)
     {
-        // Debug.Log("VAD change: Speech detected = " + isSpeechDetected);
-
         if (isSpeechDetected)
         {
             hasSpeechBeenDetected = true;
         }
     }
 
-    // Show talk button when player is near
+    // Show talk button when player is near and enable recording
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
         {
+            // If another NPC is active, disable it
+            if (activeNPC != null && activeNPC != this)
+            {
+                activeNPC.DeactivateNPC();
+            }
+
+            // Set this as the active NPC
+            activeNPC = this;
+            playerInTriggerArea = true;
+
+            // Show talk indicator
             if (transform.childCount > 0)
             {
                 transform.GetChild(0).gameObject.SetActive(true);
             }
+
+            // Enable recording input
+            if (recordAction != null && !recordAction.enabled)
+            {
+                recordAction.Enable();
+                Debug.Log($"Recording input enabled for {transform.parent.name} - player can now hold Secondary Button to talk");
+            }
         }
     }
 
-    // Hide talk button when player moves away
+    // Hide talk button when player moves away and disable recording
     private void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("Player"))
         {
-            if (transform.childCount > 0)
-            {
-                transform.GetChild(0).gameObject.SetActive(false);
-            }
+            DeactivateNPC();
+        }
+    }
 
-            // Make sure recording stops if player walks away while recording
-            if (microphoneRecord != null && microphoneRecord.IsRecording)
-            {
-                StopRecording();
-            }
+    // Method to deactivate this NPC
+    private void DeactivateNPC()
+    {
+        playerInTriggerArea = false;
+
+        // If this is the active NPC, clear the reference
+        if (activeNPC == this)
+        {
+            activeNPC = null;
+        }
+
+        // Hide talk indicator
+        if (transform.childCount > 0)
+        {
+            transform.GetChild(0).gameObject.SetActive(false);
+        }
+
+        // Make sure recording stops if player walks away while recording
+        if (microphoneRecord != null && microphoneRecord.IsRecording)
+        {
+            StopRecording();
+        }
+
+        // Disable recording input
+        if (recordAction != null && recordAction.enabled)
+        {
+            recordAction.Disable();
+            Debug.Log($"Recording input disabled for {transform.parent.name} - player left NPC area");
+        }
+
+        // Clear the conversation history when player leaves
+        if (textGenerator != null && transform.parent != null)
+        {
+            textGenerator.ClearConversationHistoryForNPC(transform.parent.gameObject);
+            Debug.Log($"Cleared conversation history for {transform.parent.name}");
+        }
+    }
+
+    // Callback for when record button is pressed
+    private void OnRecordButtonPressed()
+    {
+        // Only start recording if this is the active NPC
+        if (activeNPC == this)
+        {
+            StartRecording();
+        }
+    }
+
+    // Callback for when record button is released
+    private void OnRecordButtonReleased()
+    {
+        // Only stop recording if this is the active NPC
+        if (activeNPC == this)
+        {
+            StopRecording();
         }
     }
 
     // Method to start recording
     private void StartRecording()
     {
+        // Double-check player is still in trigger area
+        if (!playerInTriggerArea)
+        {
+            Debug.LogWarning("Tried to start recording but player is not in trigger area");
+            return;
+        }
+
         if (microphoneRecord != null && !microphoneRecord.IsRecording)
         {
             // Reset transcribed text and speech detection flag
@@ -142,7 +221,7 @@ public class DisplayTalkButton : MonoBehaviour
 
             // Start recording
             microphoneRecord.StartRecord();
-            Debug.Log("Started recording...");
+            Debug.Log($"Started recording for {transform.parent.name}...");
 
             // Visual feedback - optional
             if (transform.childCount > 0)
@@ -158,23 +237,30 @@ public class DisplayTalkButton : MonoBehaviour
         if (microphoneRecord != null && microphoneRecord.IsRecording)
         {
             microphoneRecord.StopRecord();
-            Debug.Log("Stopped recording");
+            Debug.Log($"Stopped recording for {transform.parent.name}");
         }
     }
 
     // Callback for when recording is stopped
     private async void OnRecordStop(AudioChunk recordedAudio)
     {
+        // Only process if this is the active NPC
+        if (activeNPC != this)
+        {
+            Debug.Log($"Ignoring recording from inactive NPC {transform.parent.name}");
+            return;
+        }
+
         if (whisper != null && hasSpeechBeenDetected)
         {
-            Debug.Log("Processing speech to text...");
+            Debug.Log($"Processing speech to text for {transform.parent.name}...");
 
             // Get text from the recorded audio
             var result = await whisper.GetTextAsync(recordedAudio.Data, recordedAudio.Frequency, recordedAudio.Channels);
 
             if (result != null && !string.IsNullOrWhiteSpace(result.Result))
             {
-                Debug.Log("Transcription result: " + result.Result);
+                Debug.Log($"Transcription result for {transform.parent.name}: " + result.Result);
 
                 // Get the NPC GameObject (parent of this GameObject)
                 GameObject npcObject = transform.parent ? transform.parent.gameObject : null;
@@ -183,7 +269,8 @@ public class DisplayTalkButton : MonoBehaviour
                 NPCInstruction npcInstructionComponent = npcObject?.GetComponent<NPCInstruction>();
                 string npcInstruction = npcInstructionComponent?.npcInstruction;
 
-                Debug.Log("NPC Instructions: " + (string.IsNullOrEmpty(npcInstruction) ? "None" : npcInstruction));
+                Debug.Log($"NPC Instructions for {transform.parent.name}: " +
+                    (string.IsNullOrEmpty(npcInstruction) ? "None" : npcInstruction));
 
                 // Send the transcribed text to GPTManager
                 if (textGenerator != null)
@@ -194,12 +281,12 @@ public class DisplayTalkButton : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("No transcription result or empty result.");
+                Debug.LogWarning($"No transcription result for {transform.parent.name}");
             }
         }
         else if (!hasSpeechBeenDetected)
         {
-            Debug.Log("No speech detected during recording");
+            Debug.Log($"No speech detected during recording for {transform.parent.name}");
         }
     }
 
@@ -207,6 +294,5 @@ public class DisplayTalkButton : MonoBehaviour
     private void OnNewSegment(WhisperSegment segment)
     {
         transcribedText += segment.Text;
-        // Debug.Log("Current transcription: " + transcribedText);
     }
 }
