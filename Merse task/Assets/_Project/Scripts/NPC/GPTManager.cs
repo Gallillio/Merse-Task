@@ -90,12 +90,8 @@ public class GPTManager : MonoBehaviour
                 npcConversationHistories[npcId].Clear();
                 Debug.Log($"Cleared conversation history for NPC {npcId}");
 
-                // Hide spatial panel when conversation is cleared
-                NPCInteractionManager npcInteractionManager = npcObject.GetComponentInChildren<NPCInteractionManager>();
-                if (npcInteractionManager != null)
-                {
-                    npcInteractionManager.HideSpatialPanel();
-                }
+                // No longer hide spatial panel when conversation is cleared
+                // It should remain visible as long as the player is in the trigger area
             }
         }
     }
@@ -109,17 +105,8 @@ public class GPTManager : MonoBehaviour
             // Track the current NPC for responses
             currentNpcObject = npcObject;
 
-            // First, ensure the spatial panel is enabled so we can access components inside it
-            NPCInteractionManager npcInteractionManager = npcObject.GetComponentInChildren<NPCInteractionManager>();
-            if (npcInteractionManager != null)
-            {
-                npcInteractionManager.ShowSpatialPanel();
-                Debug.Log("Showing spatial panel before accessing responseText");
-            }
-            else
-            {
-                Debug.LogError($"No NPCInteractionManager found on {npcObject.name} or its children");
-            }
+            // No need to ensure the spatial panel is enabled here
+            // as it's already enabled when the player enters the trigger area
 
             // Search for NPCInstruction component more thoroughly
             NPCInstruction npcInstructionComponent = npcObject.GetComponent<NPCInstruction>();
@@ -139,8 +126,8 @@ public class GPTManager : MonoBehaviour
                 if (npcInstructionComponent.responseText != null)
                 {
                     currentResponseText = npcInstructionComponent.responseText;
-                    currentResponseText.text = "Hmmm...";
-                    Debug.Log($"Set responseText to 'Hmmm...'");
+                    currentResponseText.text = "Thinking...";
+                    Debug.Log($"Set responseText to 'Thinking...'");
                 }
                 else
                 {
@@ -184,17 +171,7 @@ public class GPTManager : MonoBehaviour
             List<ChatMessage> npcConversationHistory = GetConversationHistoryForNPC(currentNpcObject);
             npcConversationHistory.Add(new ChatMessage { role = "model", content = response });
 
-            // Enable spatial panel on the NPC before showing response
-            NPCInteractionManager npcInteractionManager = currentNpcObject.GetComponentInChildren<NPCInteractionManager>();
-            if (npcInteractionManager != null)
-            {
-                Debug.Log("Showing spatial panel");
-                npcInteractionManager.ShowSpatialPanel();
-            }
-            else
-            {
-                Debug.LogWarning("Could not find NPCInteractionManager on NPC: " + currentNpcObject.name);
-            }
+            // No longer need to show spatial panel here as it's already visible when player is in trigger area
         }
 
         if (string.IsNullOrEmpty(response) || currentResponseText == null)
@@ -242,15 +219,8 @@ public class GPTManager : MonoBehaviour
             // currentResponseText.text = "";
             awaitingUserAdvance = false;
 
-            // Hide the spatial panel when we're done showing all sentences
-            if (currentNpcObject != null)
-            {
-                NPCInteractionManager npcInteractionManager = currentNpcObject.GetComponentInChildren<NPCInteractionManager>();
-                if (npcInteractionManager != null)
-                {
-                    npcInteractionManager.HideSpatialPanel();
-                }
-            }
+            // No longer hide the spatial panel when done showing sentences
+            // It should remain visible as long as the player is in the trigger area
         }
     }
 

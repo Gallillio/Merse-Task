@@ -198,14 +198,14 @@ public class NPCInteractionManager : MonoBehaviour
             activeNPC = this;
             playerInTriggerArea = true;
 
-            // Note: Spatial panel now remains hidden until response is received
-            // We'll enable it via ShowSpatialPanel method
+            // Show spatial panel when player enters trigger area
+            ShowSpatialPanel();
 
             // Enable recording input
             if (recordAction != null && !recordAction.enabled)
             {
                 recordAction.Enable();
-                Debug.Log($"Recording input enabled for {transform.parent.name} - player can now hold Secondary Button to talk");
+                Debug.Log($"Recording input enabled for {transform.parent.name}");
             }
         }
     }
@@ -422,7 +422,7 @@ public class NPCInteractionManager : MonoBehaviour
         if (spatialPanelModel != null)
         {
             spatialPanelModel.SetActive(true);
-            Debug.Log($"Spatial panel activated for {transform.parent?.name}");
+            // Debug.Log($"Spatial panel activated for {transform.parent?.name}");
         }
         else
         {
