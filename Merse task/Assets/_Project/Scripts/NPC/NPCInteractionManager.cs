@@ -16,6 +16,9 @@ public class NPCInteractionManager : MonoBehaviour
     [Header("Input System")]
     public InputActionAsset inputAction; // Assign in Inspector
 
+    [Header("Recording Settings")]
+    private float minimumRecordingDuration = 0.3f;
+
     private string transcribedText = "";
     private bool hasSpeechBeenDetected = false;
     private InputAction recordAction;
@@ -26,6 +29,9 @@ public class NPCInteractionManager : MonoBehaviour
 
     // Reference to the spatial panel model
     private GameObject spatialPanelModel;
+
+    // Recording variables
+    private float recordingStartTime = 0f;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -291,6 +297,7 @@ public class NPCInteractionManager : MonoBehaviour
 
             // Start recording
             microphoneRecordManager.StartRecord();
+            recordingStartTime = Time.time;
             Debug.Log($"Started recording for {transform.parent.name}...");
 
             // Enable the actively listening icon
@@ -306,8 +313,30 @@ public class NPCInteractionManager : MonoBehaviour
     {
         if (microphoneRecordManager != null && microphoneRecordManager.IsRecording)
         {
-            microphoneRecordManager.StopRecord();
-            Debug.Log($"Stopped recording for {transform.parent.name}");
+            // Check if recording time is too short (less than minimum duration)
+            float recordingDuration = Time.time - recordingStartTime;
+            if (recordingDuration < minimumRecordingDuration)
+            {
+                Debug.Log($"Recording too short ({recordingDuration:F2}s), ignoring this recording");
+
+                // Use a try-catch to handle potential errors for short recordings
+                try
+                {
+                    // Just stop the recording - we will handle the empty recording in the OnRecordStop callback
+                    microphoneRecordManager.StopRecord();
+                }
+                catch (System.ArgumentException ex)
+                {
+                    Debug.LogWarning($"Expected error for short recording: {ex.Message}");
+                    // No need to do anything else, the recording was too short
+                }
+            }
+            else
+            {
+                // Recording is long enough, proceed with stop
+                microphoneRecordManager.StopRecord();
+                Debug.Log($"Stopped recording for {transform.parent.name} (duration: {recordingDuration:F2}s)");
+            }
 
             // Disable the actively listening icon
             if (activeListeningIcon != null)
@@ -324,6 +353,21 @@ public class NPCInteractionManager : MonoBehaviour
         if (activeNPC != this)
         {
             Debug.Log($"Ignoring recording from inactive NPC {transform.parent.name}");
+            return;
+        }
+
+        // Check for empty or very short recordings
+        if (recordedAudio.Data == null || recordedAudio.Data.Length == 0)
+        {
+            Debug.Log($"Empty recording received, nothing to process.");
+            return;
+        }
+
+        // Check for short recording that might still have data but likely isn't useful
+        float recordingDuration = Time.time - recordingStartTime;
+        if (recordingDuration < minimumRecordingDuration)
+        {
+            Debug.Log($"Recording too short ({recordingDuration:F2}s), ignoring.");
             return;
         }
 
