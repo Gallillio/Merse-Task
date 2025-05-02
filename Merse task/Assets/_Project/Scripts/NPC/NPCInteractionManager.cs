@@ -9,9 +9,9 @@ public class NPCInteractionManager : MonoBehaviour
     private static NPCInteractionManager activeNPC = null;
 
     [Header("STT References")]
-    public WhisperManager whisper;
-    public MicrophoneRecord microphoneRecord;
-    public GPTManager textGenerator;
+    private WhisperManager whisperManager;
+    private MicrophoneRecord microphoneRecordManager;
+    private GPTManager gptManager;
 
     [Header("Input System")]
     public InputActionAsset inputAction; // Assign in Inspector
@@ -20,6 +20,12 @@ public class NPCInteractionManager : MonoBehaviour
     private bool hasSpeechBeenDetected = false;
     private InputAction recordAction;
     private bool playerInTriggerArea = false;
+
+    // Reference to the listening feedback icon
+    private GameObject activeListeningIcon;
+
+    // Reference to the spatial panel model
+    private GameObject spatialPanelModel;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -30,22 +36,92 @@ public class NPCInteractionManager : MonoBehaviour
             transform.GetChild(0).gameObject.SetActive(false);
         }
 
-        // Setup microphone and whisper events
-        if (microphoneRecord != null)
+        // Find the Actively Listening Feedback Icon sibling
+        activeListeningIcon = transform.parent.Find("_Actively Listening Feedback Icon")?.gameObject;
+        if (activeListeningIcon != null)
         {
-            microphoneRecord.OnRecordStop += OnRecordStop;
-            microphoneRecord.OnVadChanged += OnVadChanged;
+            activeListeningIcon.SetActive(false);
+        }
+        else
+        {
+            Debug.LogWarning("Could not find '_Actively Listening Feedback Icon' sibling GameObject");
         }
 
-        if (whisper != null)
+        // Find the Spatial Panel Manipulator Model child
+        spatialPanelModel = transform.Find("_Spatial Panel Manipulator Model")?.gameObject;
+        if (spatialPanelModel != null)
         {
-            whisper.OnNewSegment += OnNewSegment;
+            spatialPanelModel.SetActive(false);
+        }
+        else
+        {
+            Debug.LogWarning("Could not find '_Spatial Panel Manipulator Model' child GameObject");
         }
 
-        // Find GPTManager if not assigned
-        if (textGenerator == null)
+        // Find managers if not assigned
+        if (whisperManager == null)
         {
-            textGenerator = FindObjectOfType<GPTManager>();
+            GameObject whisperObj = GameObject.Find("_Whisper Manager");
+            if (whisperObj != null)
+            {
+                whisperManager = whisperObj.GetComponent<WhisperManager>();
+            }
+            else
+            {
+                Debug.LogWarning("Could not find '_Whisper Manager' GameObject");
+            }
+        }
+
+        if (microphoneRecordManager == null)
+        {
+            GameObject microphoneObj = GameObject.Find("_Microphone Record Manager");
+            if (microphoneObj != null)
+            {
+                microphoneRecordManager = microphoneObj.GetComponent<MicrophoneRecord>();
+            }
+            else
+            {
+                Debug.LogWarning("Could not find '_Microphone Record Manager' GameObject");
+            }
+        }
+
+        if (gptManager == null)
+        {
+            GameObject gptObj = GameObject.Find("_GPT Manager");
+            if (gptObj != null)
+            {
+                gptManager = gptObj.GetComponent<GPTManager>();
+            }
+            else
+            {
+                Debug.LogWarning("Could not find '_GPT Manager' GameObject");
+                gptManager = FindObjectOfType<GPTManager>();
+
+                if (gptManager == null)
+                {
+                    Debug.LogError("GPT Manager reference not found!");
+                }
+            }
+        }
+
+        // Setup microphone and whisperManager events
+        if (microphoneRecordManager != null)
+        {
+            microphoneRecordManager.OnRecordStop += OnRecordStop;
+            microphoneRecordManager.OnVadChanged += OnVadChanged;
+        }
+        else
+        {
+            Debug.LogError("Microphone Record Manager reference not found!");
+        }
+
+        if (whisperManager != null)
+        {
+            whisperManager.OnNewSegment += OnNewSegment;
+        }
+        else
+        {
+            Debug.LogError("Whisper Manager reference not found!");
         }
 
         // Setup Input System for Secondary Button (but don't enable it yet)
@@ -74,15 +150,15 @@ public class NPCInteractionManager : MonoBehaviour
         }
 
         // Clean up event listeners
-        if (microphoneRecord != null)
+        if (microphoneRecordManager != null)
         {
-            microphoneRecord.OnRecordStop -= OnRecordStop;
-            microphoneRecord.OnVadChanged -= OnVadChanged;
+            microphoneRecordManager.OnRecordStop -= OnRecordStop;
+            microphoneRecordManager.OnVadChanged -= OnVadChanged;
         }
 
-        if (whisper != null)
+        if (whisperManager != null)
         {
-            whisper.OnNewSegment -= OnNewSegment;
+            whisperManager.OnNewSegment -= OnNewSegment;
         }
 
         // Disable input action if it was enabled
@@ -116,11 +192,8 @@ public class NPCInteractionManager : MonoBehaviour
             activeNPC = this;
             playerInTriggerArea = true;
 
-            // Show talk indicator
-            if (transform.childCount > 0)
-            {
-                transform.GetChild(0).gameObject.SetActive(true);
-            }
+            // Note: Spatial panel now remains hidden until response is received
+            // We'll enable it via ShowSpatialPanel method
 
             // Enable recording input
             if (recordAction != null && !recordAction.enabled)
@@ -151,14 +224,11 @@ public class NPCInteractionManager : MonoBehaviour
             activeNPC = null;
         }
 
-        // Hide talk indicator
-        if (transform.childCount > 0)
-        {
-            transform.GetChild(0).gameObject.SetActive(false);
-        }
+        // Hide spatial panel
+        HideSpatialPanel();
 
         // Make sure recording stops if player walks away while recording
-        if (microphoneRecord != null && microphoneRecord.IsRecording)
+        if (microphoneRecordManager != null && microphoneRecordManager.IsRecording)
         {
             StopRecording();
         }
@@ -171,9 +241,9 @@ public class NPCInteractionManager : MonoBehaviour
         }
 
         // Clear the conversation history when player leaves
-        if (textGenerator != null && transform.parent != null)
+        if (gptManager != null && transform.parent != null)
         {
-            textGenerator.ClearConversationHistoryForNPC(transform.parent.gameObject);
+            gptManager.ClearConversationHistoryForNPC(transform.parent.gameObject);
             // Debug.Log($"Cleared conversation history for {transform.parent.name}");
         }
     }
@@ -208,25 +278,25 @@ public class NPCInteractionManager : MonoBehaviour
             return;
         }
 
-        if (microphoneRecord != null && !microphoneRecord.IsRecording)
+        if (microphoneRecordManager != null && !microphoneRecordManager.IsRecording)
         {
             // Reset transcribed text and speech detection flag
             transcribedText = "";
             hasSpeechBeenDetected = false;
 
             // Configure microphone for VAD
-            microphoneRecord.useVad = true;       // Enable Voice Activity Detection
-            microphoneRecord.vadStop = false;     // Don't auto-stop
-            microphoneRecord.dropVadPart = true;  // Drop the silent part at the end
+            microphoneRecordManager.useVad = true;       // Enable Voice Activity Detection
+            microphoneRecordManager.vadStop = false;     // Don't auto-stop
+            microphoneRecordManager.dropVadPart = true;  // Drop the silent part at the end
 
             // Start recording
-            microphoneRecord.StartRecord();
+            microphoneRecordManager.StartRecord();
             Debug.Log($"Started recording for {transform.parent.name}...");
 
-            // Visual feedback - optional
-            if (transform.childCount > 0)
+            // Enable the actively listening icon
+            if (activeListeningIcon != null)
             {
-                // Change color or add some indicator that recording is active
+                activeListeningIcon.SetActive(true);
             }
         }
     }
@@ -234,10 +304,16 @@ public class NPCInteractionManager : MonoBehaviour
     // Method to stop recording
     private void StopRecording()
     {
-        if (microphoneRecord != null && microphoneRecord.IsRecording)
+        if (microphoneRecordManager != null && microphoneRecordManager.IsRecording)
         {
-            microphoneRecord.StopRecord();
+            microphoneRecordManager.StopRecord();
             Debug.Log($"Stopped recording for {transform.parent.name}");
+
+            // Disable the actively listening icon
+            if (activeListeningIcon != null)
+            {
+                activeListeningIcon.SetActive(false);
+            }
         }
     }
 
@@ -251,12 +327,12 @@ public class NPCInteractionManager : MonoBehaviour
             return;
         }
 
-        if (whisper != null && hasSpeechBeenDetected)
+        if (whisperManager != null && hasSpeechBeenDetected)
         {
             Debug.Log($"Processing speech to text for {transform.parent.name}...");
 
             // Get text from the recorded audio
-            var result = await whisper.GetTextAsync(recordedAudio.Data, recordedAudio.Frequency, recordedAudio.Channels);
+            var result = await whisperManager.GetTextAsync(recordedAudio.Data, recordedAudio.Frequency, recordedAudio.Channels);
 
             if (result != null && !string.IsNullOrWhiteSpace(result.Result))
             {
@@ -273,10 +349,10 @@ public class NPCInteractionManager : MonoBehaviour
                 //     (string.IsNullOrEmpty(npcInstruction) ? "None" : npcInstruction));
 
                 // Send the transcribed text to GPTManager
-                if (textGenerator != null)
+                if (gptManager != null)
                 {
                     // Pass the NPC GameObject with the NPCInstruction component
-                    textGenerator.TrySendInput(result.Result, npcObject);
+                    gptManager.TrySendInput(result.Result, npcObject);
                 }
             }
             else
@@ -294,5 +370,28 @@ public class NPCInteractionManager : MonoBehaviour
     private void OnNewSegment(WhisperSegment segment)
     {
         transcribedText += segment.Text;
+    }
+
+    // Public method to show the spatial panel model
+    public void ShowSpatialPanel()
+    {
+        if (spatialPanelModel != null)
+        {
+            spatialPanelModel.SetActive(true);
+            Debug.Log($"Spatial panel activated for {transform.parent?.name}");
+        }
+        else
+        {
+            Debug.LogWarning($"Cannot show spatial panel: _Spatial Panel Manipulator Model reference is null");
+        }
+    }
+
+    // Public method to hide the spatial panel model
+    public void HideSpatialPanel()
+    {
+        if (spatialPanelModel != null)
+        {
+            spatialPanelModel.SetActive(false);
+        }
     }
 }

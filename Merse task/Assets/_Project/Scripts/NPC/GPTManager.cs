@@ -89,6 +89,13 @@ public class GPTManager : MonoBehaviour
             {
                 npcConversationHistories[npcId].Clear();
                 Debug.Log($"Cleared conversation history for NPC {npcId}");
+
+                // Hide spatial panel when conversation is cleared
+                NPCInteractionManager npcInteractionManager = npcObject.GetComponentInChildren<NPCInteractionManager>();
+                if (npcInteractionManager != null)
+                {
+                    npcInteractionManager.HideSpatialPanel();
+                }
             }
         }
     }
@@ -97,19 +104,53 @@ public class GPTManager : MonoBehaviour
     {
         if (!string.IsNullOrEmpty(userInput) && npcObject != null)
         {
+            Debug.Log($"TrySendInput called for NPC: {npcObject.name}");
+
             // Track the current NPC for responses
             currentNpcObject = npcObject;
 
-            // Get the NPC's response text component
-            NPCInstruction npcInstructionComponent = npcObject.GetComponent<NPCInstruction>();
-            if (npcInstructionComponent != null && npcInstructionComponent.responseText != null)
+            // First, ensure the spatial panel is enabled so we can access components inside it
+            NPCInteractionManager npcInteractionManager = npcObject.GetComponentInChildren<NPCInteractionManager>();
+            if (npcInteractionManager != null)
             {
-                currentResponseText = npcInstructionComponent.responseText;
-                currentResponseText.text = "Thinking...";
+                npcInteractionManager.ShowSpatialPanel();
+                Debug.Log("Showing spatial panel before accessing responseText");
             }
             else
             {
-                Debug.LogError("NPC is missing NPCInstruction component or responseText! Cannot display response.");
+                Debug.LogError($"No NPCInteractionManager found on {npcObject.name} or its children");
+            }
+
+            // Search for NPCInstruction component more thoroughly
+            NPCInstruction npcInstructionComponent = npcObject.GetComponent<NPCInstruction>();
+
+            // If not found on the parent object, try looking in children
+            if (npcInstructionComponent == null)
+            {
+                Debug.Log($"NPCInstruction not found on {npcObject.name}, searching in children...");
+                npcInstructionComponent = npcObject.GetComponentInChildren<NPCInstruction>();
+            }
+
+            // If found, check the responseText
+            if (npcInstructionComponent != null)
+            {
+                Debug.Log($"Found NPCInstruction on {npcInstructionComponent.gameObject.name}");
+
+                if (npcInstructionComponent.responseText != null)
+                {
+                    currentResponseText = npcInstructionComponent.responseText;
+                    currentResponseText.text = "Hmmm...";
+                    Debug.Log($"Set responseText to 'Hmmm...'");
+                }
+                else
+                {
+                    Debug.LogError($"NPCInstruction found on {npcInstructionComponent.gameObject.name} but responseText is null");
+                    return;
+                }
+            }
+            else
+            {
+                Debug.LogError($"NPCInstruction component not found on {npcObject.name} or any of its children");
                 return;
             }
 
@@ -120,16 +161,8 @@ public class GPTManager : MonoBehaviour
             npcConversationHistory.Add(new ChatMessage { role = "user", content = userInput });
 
             // Get NPC instructions
-            string npcInstruction = null;
-            if (npcInstructionComponent != null)
-            {
-                npcInstruction = npcInstructionComponent.npcInstruction;
-                // Debug.Log($"GPTManager using NPC instruction: {npcInstruction}");
-            }
-            else
-            {
-                Debug.LogWarning("NPC GameObject doesn't have NPCInstruction component");
-            }
+            string npcInstruction = npcInstructionComponent.npcInstruction;
+            Debug.Log($"Using NPC instruction: {(string.IsNullOrEmpty(npcInstruction) ? "None" : npcInstruction)}");
 
             // Send the request with this NPC's conversation history
             RequestGeminiResponse(userInput, npcConversationHistory, OnGeminiResponse, npcInstruction);
@@ -145,9 +178,23 @@ public class GPTManager : MonoBehaviour
     {
         if (currentNpcObject != null)
         {
+            Debug.Log("OnGeminiResponse called");
+
             // Add model response to this NPC's conversation history
             List<ChatMessage> npcConversationHistory = GetConversationHistoryForNPC(currentNpcObject);
             npcConversationHistory.Add(new ChatMessage { role = "model", content = response });
+
+            // Enable spatial panel on the NPC before showing response
+            NPCInteractionManager npcInteractionManager = currentNpcObject.GetComponentInChildren<NPCInteractionManager>();
+            if (npcInteractionManager != null)
+            {
+                Debug.Log("Showing spatial panel");
+                npcInteractionManager.ShowSpatialPanel();
+            }
+            else
+            {
+                Debug.LogWarning("Could not find NPCInteractionManager on NPC: " + currentNpcObject.name);
+            }
         }
 
         if (string.IsNullOrEmpty(response) || currentResponseText == null)
@@ -191,8 +238,19 @@ public class GPTManager : MonoBehaviour
         }
         else
         {
-            currentResponseText.text = "";
+            // Don't set text to empty string before hiding panel
+            // currentResponseText.text = "";
             awaitingUserAdvance = false;
+
+            // Hide the spatial panel when we're done showing all sentences
+            if (currentNpcObject != null)
+            {
+                NPCInteractionManager npcInteractionManager = currentNpcObject.GetComponentInChildren<NPCInteractionManager>();
+                if (npcInteractionManager != null)
+                {
+                    npcInteractionManager.HideSpatialPanel();
+                }
+            }
         }
     }
 
