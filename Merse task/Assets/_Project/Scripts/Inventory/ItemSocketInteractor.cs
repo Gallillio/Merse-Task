@@ -12,6 +12,10 @@ namespace Inventory
     [RequireComponent(typeof(UnityEngine.XR.Interaction.Toolkit.Interactors.XRSocketInteractor))]
     public class ItemSocketInteractor : MonoBehaviour
     {
+        [Header("Settings")]
+        [SerializeField, Tooltip("Scale multiplier applied when socket is disabled")]
+        private float scaleMultiplier = 4.04f;
+
         private UnityEngine.XR.Interaction.Toolkit.Interactors.XRSocketInteractor socketInteractor;
         private IInventoryService inventoryService;
         private IQuestService questService;
@@ -70,12 +74,19 @@ namespace Inventory
             // Re-attach the item if we have one and it's not being held by something else
             if (currentHeldItem != null)
             {
+                Debug.Log($"DEBUG [SOCKET ENABLE] Socket: {gameObject.name}, Item: {currentHeldItem.name}, Scale: {currentHeldItem.localScale}");
+
                 // Check if the item is not being held by another interactor
                 var interactable = currentHeldItem.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseInteractable>();
                 if (interactable != null && !interactable.isSelected)
                 {
+                    Vector3 scaleBefore = currentHeldItem.localScale;
+
                     // Re-attach using inventory service
                     inventoryService.AttachItem(currentHeldItem, transform);
+
+                    // Log the scale change after reattachment
+                    Debug.Log($"DEBUG [SOCKET REATTACH] Socket: {gameObject.name}, Item: {currentHeldItem.name}, Scale before: {scaleBefore}, Scale after: {currentHeldItem.localScale}");
 
                     // Try to re-select it using the socket interactor
                     socketInteractor.StartManualInteraction(interactable as UnityEngine.XR.Interaction.Toolkit.Interactables.IXRSelectInteractable);
@@ -91,18 +102,16 @@ namespace Inventory
             socketInteractor.selectEntered.RemoveListener(OnSelectEntered);
             socketInteractor.selectExited.RemoveListener(OnSelectExited);
 
-            // Reset item scale when socket is disabled to prevent scaling issues
-            if (currentHeldItem != null && inventoryService != null)
+            // Apply 10x scale multiplier when socket is disabled to compensate for small parent scale
+            if (currentHeldItem != null)
             {
-                // Get the original scale from inventory service and apply it
-                Vector3 originalScale = inventoryService.GetOriginalScale(currentHeldItem);
+                Debug.Log($"DEBUG [SOCKET DISABLE] Socket: {gameObject.name}, Item: {currentHeldItem.name}, Current scale: {currentHeldItem.localScale}");
 
-                // Only apply if different to avoid unnecessary operations
-                if (currentHeldItem.localScale != originalScale)
-                {
-                    currentHeldItem.localScale = originalScale;
-                    logger?.Log($"Reset scale on disable for {currentHeldItem.name}: {originalScale}");
-                }
+                // Apply configurable scale multiplier to compensate for parent scale
+                Vector3 compensationScale = new Vector3(scaleMultiplier, scaleMultiplier, scaleMultiplier);
+                currentHeldItem.localScale = compensationScale;
+
+                Debug.Log($"DEBUG [SOCKET DISABLE APPLIED COMPENSATION] Item: {currentHeldItem.name}, New scale: {currentHeldItem.localScale}, Applied {scaleMultiplier}x multiplier");
             }
         }
 
@@ -115,6 +124,7 @@ namespace Inventory
                 return;
 
             Transform selected = args.interactableObject.transform;
+            Debug.Log($"DEBUG [ITEM ENTER SOCKET] Socket: {gameObject.name}, Item: {selected.name}, Scale: {selected.localScale}, World scale: {selected.lossyScale}");
 
             // Only play sound if this is a new item or was manually grabbed before
             if (!itemsPlayedSound.Contains(selected) || wasManuallyGrabbed)
@@ -129,8 +139,12 @@ namespace Inventory
             // Track the current held item
             currentHeldItem = selected;
 
+            Vector3 scaleBefore = selected.localScale;
+
             // Use inventory service to handle attachment
             inventoryService.AttachItem(selected, transform);
+
+            Debug.Log($"DEBUG [AFTER SOCKET ATTACH] Socket: {gameObject.name}, Item: {selected.name}, Scale before: {scaleBefore}, Scale after: {selected.localScale}");
         }
 
         /// <summary>
@@ -142,6 +156,7 @@ namespace Inventory
                 return;
 
             Transform selected = args.interactableObject.transform;
+            Debug.Log($"DEBUG [ITEM EXIT SOCKET] Socket: {gameObject.name}, Item: {selected.name}, Current scale: {selected.localScale}");
 
             // Check if we're being deactivated
             bool isSocketDeactivation = !gameObject.activeInHierarchy;
@@ -150,6 +165,8 @@ namespace Inventory
             // If the interactor is not null and it's not this socket, it's likely a manual grab
             bool isManualGrab = args.interactorObject != null &&
                                args.interactorObject.transform != socketInteractor.transform;
+
+            Debug.Log($"DEBUG [EXIT TYPE] Socket: {gameObject.name}, Item: {selected.name}, Manual grab: {isManualGrab}, Socket deactivation: {isSocketDeactivation}");
 
             // Log what interactor is taking the item
             if (isManualGrab)
@@ -167,11 +184,18 @@ namespace Inventory
                 itemsPlayedSound.Remove(selected);
             }
 
+            Vector3 scaleBeforeDetach = selected.localScale;
+
             // Return to Collectables if it was manually grabbed by a hand or controller
             if (wasManuallyGrabbed)
             {
+                // Reset to standard scale (1,1,1) when removed from socket
+                selected.localScale = Vector3.one;
+
                 // Use inventory service to handle detachment
                 inventoryService.DetachItem(selected);
+
+                Debug.Log($"DEBUG [AFTER DETACH] Socket: {gameObject.name}, Item: {selected.name}, Scale before: {scaleBeforeDetach}, Scale after: {selected.localScale}");
 
                 // Clear reference and flag
                 if (currentHeldItem == selected)
@@ -179,6 +203,10 @@ namespace Inventory
                     currentHeldItem = null;
                     wasManuallyGrabbed = false;
                 }
+            }
+            else
+            {
+                Debug.Log($"DEBUG [NO DETACH] Socket: {gameObject.name}, Item: {selected.name}, Not manually grabbed, scale: {selected.localScale}");
             }
         }
     }

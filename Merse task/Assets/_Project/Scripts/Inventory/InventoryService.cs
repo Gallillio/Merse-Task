@@ -11,11 +11,11 @@ namespace Inventory
     /// </summary>
     public class InventoryService : MonoBehaviour, IInventoryService
     {
-        [Header("Configuration")]
-        [SerializeField] private float socketScaleMultiplier = 10f;
-
         [Header("References")]
         [SerializeField] private Transform collectablesParent;
+
+        [Header("Debug")]
+        [SerializeField] private bool verboseLogging = true;
 
         private IAudioService audioService;
         private ILoggingService logger;
@@ -64,26 +64,30 @@ namespace Inventory
                 return;
             }
 
-            // Store original scale before modifying, but only if we don't already have it
-            if (!originalScales.ContainsKey(item))
-            {
-                originalScales[item] = item.localScale;
-                logger?.Log($"Stored original scale for {item.name}: {item.localScale}");
-            }
-            else
-            {
-                // First reset to original scale to prevent cumulative scaling
-                item.localScale = originalScales[item];
-                logger?.Log($"Reset to original scale for {item.name}: {item.localScale}");
-            }
+            // VERBOSE DEBUG: Log item's scale before any operations
+            Debug.Log($"DEBUG [BEFORE ATTACH] Item: {item.name}, Current scale: {item.localScale}, World scale: {item.lossyScale}");
 
-            // Parent to the socket
-            item.SetParent(socket, true); // true = maintain world pos/rot
+            // Remember current scale for debugging
+            Vector3 currentScale = item.localScale;
+            Vector3 scaleBeforeParenting = item.localScale;
+            Transform parentBeforeAttach = item.parent;
+            Debug.Log($"DEBUG [PRE-PARENT] Item: {item.name}, Scale: {scaleBeforeParenting}, Parent: {(parentBeforeAttach ? parentBeforeAttach.name : "null")}");
 
-            // Apply ABSOLUTE scale based on original scale (prevents cumulative scaling)
-            Vector3 targetScale = originalScales[item] * socketScaleMultiplier;
-            item.localScale = targetScale;
-            logger?.Log($"Applied socket scale for {item.name}: {targetScale}");
+            // Store the world position and rotation before changing parent
+            Vector3 worldPosition = item.position;
+            Quaternion worldRotation = item.rotation;
+
+            // Parent to the socket WITHOUT preserving world position/rotation
+            item.SetParent(socket, false);
+
+            // Restore world position and rotation
+            item.position = worldPosition;
+            item.rotation = worldRotation;
+
+            // Preserve the scale that was set prior to parenting
+            item.localScale = scaleBeforeParenting;
+
+            Debug.Log($"DEBUG [POST-PARENT] Item: {item.name}, Scale before: {scaleBeforeParenting}, Scale after: {item.localScale}, Parent: {socket.name}");
 
             // Trigger event
             OnItemAttached?.Invoke(item, socket);
@@ -103,21 +107,34 @@ namespace Inventory
                 return;
             }
 
-            // Restore original scale BEFORE reparenting
-            if (originalScales.TryGetValue(item, out Vector3 originalScale))
-            {
-                item.localScale = originalScale;
-                logger?.Log($"Restored original scale for {item.name}: {originalScale}");
-            }
+            // VERBOSE DEBUG: Log item's scale before any operations
+            Debug.Log($"DEBUG [BEFORE DETACH] Item: {item.name}, Current scale: {item.localScale}, Parent: {(item.parent ? item.parent.name : "null")}");
+
+            // Store the item's world position and rotation before reparenting
+            Vector3 worldPosition = item.position;
+            Quaternion worldRotation = item.rotation;
+
+            // Always use Vector3.one when detaching items
+            Debug.Log($"DEBUG [SCALE DETACH] Item: {item.name}, Current: {item.localScale}, Setting to Vector3.one");
+            Vector3 scaleBeforeDetach = item.localScale;
+            item.localScale = Vector3.one;
 
             // Move the item back to collectables if available
             if (collectablesParent != null)
             {
-                // Reparent to collectables
-                item.SetParent(collectablesParent, true);
+                // Reparent to collectables WITHOUT preserving world position
+                item.SetParent(collectablesParent, false);
 
-                // Remove from tracking when fully detached
-                originalScales.Remove(item);
+                // Restore the world position and rotation
+                item.position = worldPosition;
+                item.rotation = worldRotation;
+
+                // Ensure scale is exactly (1,1,1)
+                item.localScale = Vector3.one;
+
+                Debug.Log($"DEBUG [AFTER REPARENT] Item: {item.name}, Scale before: {scaleBeforeDetach}, Scale after: {item.localScale}, Parent: {collectablesParent.name}");
+
+                // Keep the original scale in memory in case we need it again
                 logger?.Log($"Item {item.name} detached and returned to collectables");
             }
             else
@@ -143,23 +160,6 @@ namespace Inventory
         }
 
         /// <summary>
-        /// Set the collectables parent
-        /// </summary>
-        /// <param name="collectablesTransform">The transform to use as collectables parent</param>
-        public void SetCollectablesParent(Transform collectablesTransform)
-        {
-            if (collectablesTransform != null)
-            {
-                collectablesParent = collectablesTransform;
-                logger?.Log($"Set collectables parent to {collectablesParent.name}");
-            }
-            else
-            {
-                logger?.LogWarning("Attempted to set null collectables parent");
-            }
-        }
-
-        /// <summary>
         /// Get the stored original scale for an item
         /// </summary>
         /// <param name="item">The item to get the scale for</param>
@@ -174,6 +174,7 @@ namespace Inventory
                 return scale;
             }
 
+            Debug.LogWarning($"DEBUG [NO STORED SCALE] Item: {item.name}, Returning Vector3.one as fallback");
             return Vector3.one;
         }
     }
