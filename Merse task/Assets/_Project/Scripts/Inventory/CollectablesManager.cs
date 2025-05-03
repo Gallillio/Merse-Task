@@ -148,6 +148,13 @@ namespace Inventory
             // Wait for physics to settle (increase this if needed for more stability)
             yield return new WaitForSeconds(0.1f);
 
+            // Check if the item still exists
+            if (item == null)
+            {
+                logger?.Log("Item was destroyed before it could be added back to spinning collectables");
+                yield break;
+            }
+
             // Only add back to spinning items if not in an inventory socket
             if (!IsInInventory(item))
             {
@@ -162,11 +169,15 @@ namespace Inventory
 
         private bool IsInInventory(Transform item)
         {
+            // Check if the item still exists
+            if (item == null)
+                return false;
+
             // Check if this item is parented to any inventory socket
             ItemSocketInteractor[] sockets = FindObjectsOfType<ItemSocketInteractor>();
             foreach (var socket in sockets)
             {
-                if (item.parent == socket.transform)
+                if (socket != null && item.parent == socket.transform)
                 {
                     return true;
                 }
@@ -176,11 +187,26 @@ namespace Inventory
 
         private void Update()
         {
+            // Keep track of any destroyed collectables to remove
+            List<Transform> destroyedCollectables = null;
+
             // Apply spinning to all registered collectables
             foreach (var entry in collectables)
             {
                 Transform collectable = entry.Key;
                 Vector3 currentRestPosition = entry.Value;
+
+                // Check if collectable has been destroyed
+                if (collectable == null)
+                {
+                    // Lazily initialize the list only if we find destroyed objects
+                    if (destroyedCollectables == null)
+                        destroyedCollectables = new List<Transform>();
+
+                    destroyedCollectables.Add(entry.Key);
+                    logger?.Log("Found destroyed collectable, will remove from tracking");
+                    continue;
+                }
 
                 // Spin the object
                 collectable.Rotate(spinAxis, spinSpeed * Time.deltaTime);
@@ -195,6 +221,17 @@ namespace Inventory
                     Vector3 newPosition = collectable.position;
                     newPosition.y = currentRestPosition.y + bobbingOffset;
                     collectable.position = newPosition;
+                }
+            }
+
+            // Remove any destroyed collectables
+            if (destroyedCollectables != null)
+            {
+                foreach (var destroyed in destroyedCollectables)
+                {
+                    collectables.Remove(destroyed);
+                    // Also remove from original children if present
+                    originalChildren.Remove(destroyed);
                 }
             }
         }

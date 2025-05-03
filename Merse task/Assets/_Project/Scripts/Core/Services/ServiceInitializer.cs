@@ -14,6 +14,7 @@ namespace Core.Services
         [SerializeField] private MonoBehaviour questServiceImplementation;
         [SerializeField] private MonoBehaviour inventoryServiceImplementation;
         [SerializeField] private MonoBehaviour activeConversationManagerImplementation;
+        [SerializeField] private MonoBehaviour questCompletionTrackerImplementation;
 
         [Header("Debug")]
         [SerializeField] private bool logServiceRegistration = true;
@@ -40,6 +41,7 @@ namespace Core.Services
             RegisterService<IQuestService>(questServiceImplementation);
             RegisterService<IInventoryService>(inventoryServiceImplementation);
             RegisterService<IActiveConversationManager>(activeConversationManagerImplementation);
+            RegisterService<IQuestCompletionTracker>(questCompletionTrackerImplementation);
 
             // Create and register logging service
             LoggingService loggingService = new LoggingService(logServiceRegistration);
@@ -52,24 +54,29 @@ namespace Core.Services
         }
 
         /// <summary>
-        /// Register a service if the implementation is valid
+        /// Register a service with the service locator
         /// </summary>
         private void RegisterService<T>(MonoBehaviour implementation) where T : class
         {
             if (implementation != null)
             {
-                if (implementation is T service)
+                T service = implementation as T;
+                if (service != null)
                 {
                     ServiceLocator.Register<T>(service);
+                    if (logServiceRegistration)
+                    {
+                        Debug.Log($"Registered service: {typeof(T).Name}");
+                    }
                 }
                 else
                 {
-                    Debug.LogError($"Implementation {implementation.GetType()} does not implement {typeof(T)}");
+                    Debug.LogError($"Implementation of {typeof(T).Name} is not valid. Check your references.");
                 }
             }
-            else
+            else if (logServiceRegistration)
             {
-                Debug.LogWarning($"No implementation provided for {typeof(T)}");
+                Debug.LogWarning($"No implementation provided for {typeof(T).Name}");
             }
         }
     }
