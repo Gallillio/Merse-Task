@@ -67,8 +67,18 @@ namespace Inventory
             // VERBOSE DEBUG: Log item's scale before any operations
             Debug.Log($"DEBUG [BEFORE ATTACH] Item: {item.name}, Current scale: {item.localScale}, World scale: {item.lossyScale}");
 
+            // Store original scale when we first see an item
+            if (!originalScales.ContainsKey(item))
+            {
+                originalScales[item] = item.localScale;
+                Debug.Log($"DEBUG [STORE ORIGINAL] Item: {item.name}, Stored original scale: {originalScales[item]}");
+            }
+            else
+            {
+                Debug.Log($"DEBUG [REUSING ORIGINAL] Item: {item.name}, Original scale: {originalScales[item]}, Current scale: {item.localScale}");
+            }
+
             // Remember current scale for debugging
-            Vector3 currentScale = item.localScale;
             Vector3 scaleBeforeParenting = item.localScale;
             Transform parentBeforeAttach = item.parent;
             Debug.Log($"DEBUG [PRE-PARENT] Item: {item.name}, Scale: {scaleBeforeParenting}, Parent: {(parentBeforeAttach ? parentBeforeAttach.name : "null")}");
@@ -114,10 +124,20 @@ namespace Inventory
             Vector3 worldPosition = item.position;
             Quaternion worldRotation = item.rotation;
 
-            // Always use Vector3.one when detaching items
-            Debug.Log($"DEBUG [SCALE DETACH] Item: {item.name}, Current: {item.localScale}, Setting to Vector3.one");
+            // Get the original scale for the item
+            Vector3 originalScale = Vector3.one;
+            if (originalScales.TryGetValue(item, out Vector3 storedScale))
+            {
+                originalScale = storedScale;
+                Debug.Log($"DEBUG [SCALE DETACH] Item: {item.name}, Current: {item.localScale}, Restoring to original: {originalScale}");
+            }
+            else
+            {
+                Debug.Log($"DEBUG [SCALE DETACH] Item: {item.name}, Current: {item.localScale}, No original scale found, using (1,1,1)");
+            }
+
             Vector3 scaleBeforeDetach = item.localScale;
-            item.localScale = Vector3.one;
+            item.localScale = originalScale;
 
             // Move the item back to collectables if available
             if (collectablesParent != null)
@@ -129,8 +149,8 @@ namespace Inventory
                 item.position = worldPosition;
                 item.rotation = worldRotation;
 
-                // Ensure scale is exactly (1,1,1)
-                item.localScale = Vector3.one;
+                // Ensure the correct scale is applied
+                item.localScale = originalScale;
 
                 Debug.Log($"DEBUG [AFTER REPARENT] Item: {item.name}, Scale before: {scaleBeforeDetach}, Scale after: {item.localScale}, Parent: {collectablesParent.name}");
 

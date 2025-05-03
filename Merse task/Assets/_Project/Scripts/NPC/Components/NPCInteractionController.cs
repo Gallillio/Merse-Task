@@ -36,8 +36,8 @@ public class NPCInteractionController : MonoBehaviour
     private bool hasSpeechBeenDetected = false;
     private float recordingStartTime = 0f;
 
-    // Static reference to track which NPC is currently active
-    private static NPCInteractionController activeNPC = null;
+    // Add a unique identifier for this NPC
+    [SerializeField] private string npcId;
 
     // Add a field to track if a quest was just completed
     private bool justCompletedQuest = false;
@@ -49,6 +49,13 @@ public class NPCInteractionController : MonoBehaviour
         dialogueProvider = ServiceLocator.Get<IDialogueProvider>();
         questService = ServiceLocator.Get<IQuestService>();
         loggingService = ServiceLocator.Get<ILoggingService>();
+
+        // Generate unique ID if not set
+        if (string.IsNullOrEmpty(npcId))
+        {
+            npcId = gameObject.name + "_" + GetInstanceID();
+            loggingService?.Log($"Generated NPC ID: {npcId}");
+        }
 
         // Get components
         questState = GetComponent<NPCQuestState>();
@@ -146,11 +153,7 @@ public class NPCInteractionController : MonoBehaviour
 
     private void OnDestroy()
     {
-        // If this is the active NPC, clear the reference
-        if (activeNPC == this)
-        {
-            activeNPC = null;
-        }
+        // No need to check for active NPC reference
 
         // Clean up event listeners
         if (microphoneRecordManager != null)
@@ -179,14 +182,7 @@ public class NPCInteractionController : MonoBehaviour
 
     public void OnPlayerEntered()
     {
-        // If another NPC is active, deactivate it
-        if (activeNPC != null && activeNPC != this)
-        {
-            activeNPC.DeactivateNPC();
-        }
-
-        // Set this as the active NPC
-        activeNPC = this;
+        // Allow multiple NPCs to be active at once
         playerInTriggerArea = true;
 
         // Show UI
@@ -219,15 +215,11 @@ public class NPCInteractionController : MonoBehaviour
             recordAction.Disable();
         }
 
-        // Stop audio
+        // Stop audio for this NPC only
         audioService.StopNPCVoice();
-        audioService.EndConversation();
 
-        // If this is the active NPC, clear the reference
-        if (activeNPC == this)
-        {
-            activeNPC = null;
-        }
+        // Don't end conversation globally, as other NPCs might be active
+        // audioService.EndConversation(); 
     }
 
     private void DeactivateNPC()
@@ -475,7 +467,7 @@ public class NPCInteractionController : MonoBehaviour
     private void OnDialogueCompleted()
     {
         // Only hide the panel if this is the active NPC
-        if (activeNPC == this)
+        if (playerInTriggerArea)
         {
             loggingService.Log("Dialogue completed, hiding spatial panel");
 

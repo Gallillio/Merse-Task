@@ -189,8 +189,9 @@ namespace Inventory
             // Return to Collectables if it was manually grabbed by a hand or controller
             if (wasManuallyGrabbed)
             {
-                // Reset to standard scale (1,1,1) when removed from socket
-                selected.localScale = Vector3.one;
+                // Get original scale from the inventory service
+                Vector3 originalScale = inventoryService.GetOriginalScale(selected);
+                Debug.Log($"DEBUG [GETTING ORIGINAL SCALE] Item: {selected.name}, Original scale: {originalScale}");
 
                 // Use inventory service to handle detachment
                 inventoryService.DetachItem(selected);
