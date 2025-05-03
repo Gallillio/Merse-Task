@@ -198,6 +198,44 @@ public class NPCInteractionManager : MonoBehaviour
             activeNPC = this;
             playerInTriggerArea = true;
 
+            // Get NPC instruction component
+            NPCInstruction npcInstruction = transform.parent?.GetComponent<NPCInstruction>();
+            if (npcInstruction != null && npcInstruction.hasQuest)
+            {
+                string npcName = transform.parent?.name ?? "Unknown NPC";
+
+                // Check for quest items if this is not the first interaction
+                if (npcInstruction.questActive && !npcInstruction.questCompleted)
+                {
+                    // Check if player has the quest item
+                    bool hasQuestItem = QuestManager.Instance.HasItem(npcInstruction.questItemName);
+                    if (hasQuestItem)
+                    {
+                        // Mark quest as completed
+                        npcInstruction.questCompleted = true;
+                        Debug.Log($"[QUEST STATE] Player is returning to {npcName} WITH the requested item '{npcInstruction.questItemName}'. Quest COMPLETED!");
+                    }
+                    else
+                    {
+                        Debug.Log($"[QUEST STATE] Player is returning to {npcName} WITHOUT the requested item '{npcInstruction.questItemName}'. Quest still IN PROGRESS.");
+                    }
+                }
+                else if (!npcInstruction.questActive)
+                {
+                    // First interaction - but don't mark as active yet
+                    // We'll set questActive after first conversation completes
+                    Debug.Log($"[QUEST STATE] Player is meeting {npcName} for the FIRST TIME. Will activate quest for item '{npcInstruction.questItemName}' after conversation.");
+                }
+                else if (npcInstruction.questCompleted)
+                {
+                    Debug.Log($"[QUEST STATE] Player is returning to {npcName} with a COMPLETED quest for '{npcInstruction.questItemName}'.");
+                }
+            }
+            else if (npcInstruction != null)
+            {
+                Debug.Log($"[QUEST STATE] NPC {transform.parent?.name ?? "Unknown"} doesn't have a quest configured.");
+            }
+
             // Show spatial panel when player enters trigger area
             ShowSpatialPanel();
 
@@ -373,30 +411,47 @@ public class NPCInteractionManager : MonoBehaviour
 
         if (whisperManager != null && hasSpeechBeenDetected)
         {
-            Debug.Log($"Processing speech to text for {transform.parent.name}...");
+            // Debug.Log($"Processing speech to text for {transform.parent.name}: " + result.Result);
 
             // Get text from the recorded audio
             var result = await whisperManager.GetTextAsync(recordedAudio.Data, recordedAudio.Frequency, recordedAudio.Channels);
 
             if (result != null && !string.IsNullOrWhiteSpace(result.Result))
             {
-                Debug.Log($"Transcription result for {transform.parent.name}: " + result.Result);
+                // Debug.Log($"Transcription result for {transform.parent.name}: " + result.Result);
 
                 // Get the NPC GameObject (parent of this GameObject)
                 GameObject npcObject = transform.parent ? transform.parent.gameObject : null;
 
                 // Get the NPC instructions
                 NPCInstruction npcInstructionComponent = npcObject?.GetComponent<NPCInstruction>();
-                string npcInstruction = npcInstructionComponent?.npcInstruction;
 
-                // Debug.Log($"NPC Instructions for {transform.parent.name}: " +
-                //     (string.IsNullOrEmpty(npcInstruction) ? "None" : npcInstruction));
-
-                // Send the transcribed text to GPTManager
-                if (gptManager != null)
+                if (npcInstructionComponent != null)
                 {
-                    // Pass the NPC GameObject with the NPCInstruction component
-                    gptManager.TrySendInput(result.Result, npcObject);
+                    // Special handling for first conversation
+                    bool isFirstConversation = npcInstructionComponent.hasQuest && !npcInstructionComponent.questActive;
+
+                    // Use the appropriate instruction based on quest state
+                    string currentInstruction = npcInstructionComponent.GetCurrentInstruction();
+                    Debug.Log($"Using instruction for {transform.parent.name}: {currentInstruction}");
+
+                    // Send the transcribed text to GPTManager
+                    if (gptManager != null)
+                    {
+                        // Pass the NPC GameObject with the NPCInstruction component
+                        gptManager.TrySendInput(result.Result, npcObject, currentInstruction);
+
+                        // After first conversation, mark quest as active for next time
+                        if (isFirstConversation)
+                        {
+                            npcInstructionComponent.questActive = true;
+                            Debug.Log($"[QUEST STATE] Activated quest for {transform.parent.name} after first conversation");
+                        }
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"NPCInstruction component not found on {npcObject?.name}");
                 }
             }
             else

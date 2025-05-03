@@ -96,11 +96,12 @@ public class GPTManager : MonoBehaviour
         }
     }
 
-    public void TrySendInput(string userInput, GameObject npcObject = null)
+    // Overload to support sending custom instructions
+    public void TrySendInput(string userInput, GameObject npcObject, string customInstruction = null)
     {
         if (!string.IsNullOrEmpty(userInput) && npcObject != null)
         {
-            Debug.Log($"TrySendInput called for NPC: {npcObject.name}");
+            // Debug.Log($"TrySendInput called for NPC: {npcObject.name}");
 
             // Track the current NPC for responses
             currentNpcObject = npcObject;
@@ -121,13 +122,12 @@ public class GPTManager : MonoBehaviour
             // If found, check the responseText
             if (npcInstructionComponent != null)
             {
-                Debug.Log($"Found NPCInstruction on {npcInstructionComponent.gameObject.name}");
+                // Debug.Log($"Found NPCInstruction on {npcInstructionComponent.gameObject.name}");
 
                 if (npcInstructionComponent.responseText != null)
                 {
                     currentResponseText = npcInstructionComponent.responseText;
                     currentResponseText.text = "Thinking...";
-                    Debug.Log($"Set responseText to 'Thinking...'");
                 }
                 else
                 {
@@ -147,8 +147,13 @@ public class GPTManager : MonoBehaviour
             // Add user message to this NPC's conversation history
             npcConversationHistory.Add(new ChatMessage { role = "user", content = userInput });
 
-            // Get NPC instructions
-            string npcInstruction = npcInstructionComponent.npcInstruction;
+            // Use the provided custom instruction or fall back to the component's instruction
+            string npcInstruction = customInstruction;
+            if (string.IsNullOrEmpty(npcInstruction))
+            {
+                npcInstruction = npcInstructionComponent.npcInstruction;
+            }
+
             Debug.Log($"Using NPC instruction: {(string.IsNullOrEmpty(npcInstruction) ? "None" : npcInstruction)}");
 
             // Send the request with this NPC's conversation history
@@ -182,7 +187,7 @@ public class GPTManager : MonoBehaviour
 
         // Clean the response by removing newlines and trimming
         response = response.Replace("\n", " ").Replace("\r", "").Trim();
-        Debug.Log($"Cleaned Gemini response: {response}");
+        // Debug.Log($"Cleaned Gemini response: {response}");
 
         // Split response into sentences
         currentSentences = SplitIntoSentences(response);
@@ -192,7 +197,7 @@ public class GPTManager : MonoBehaviour
         if (currentSentences.Count > 0)
         {
             currentResponseText.text = currentSentences[0];
-            Debug.Log($"Displaying first sentence: '{currentSentences[0]}'");
+            // Debug.Log($"Displaying first sentence: '{currentSentences[0]}'");
         }
         else
         {
@@ -219,7 +224,7 @@ public class GPTManager : MonoBehaviour
             }
         }
 
-        Debug.Log($"Split into {sentences.Count} sentences");
+        // Debug.Log($"Split into {sentences.Count} sentences");
         return sentences;
     }
 
@@ -235,7 +240,7 @@ public class GPTManager : MonoBehaviour
         {
             string sentenceToShow = currentSentences[currentSentenceIndex];
             currentResponseText.text = sentenceToShow;
-            Debug.Log($"Displaying sentence: '{sentenceToShow}'");
+            // Debug.Log($"Displaying sentence: '{sentenceToShow}'");
         }
         else
         {

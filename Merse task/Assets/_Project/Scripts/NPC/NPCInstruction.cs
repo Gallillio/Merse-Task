@@ -3,8 +3,25 @@ using TMPro;
 
 public class NPCInstruction : MonoBehaviour
 {
+    [Header("NPC Dialogue Settings")]
     [TextArea(2, 5)]
-    public string npcInstruction; // Set per-NPC instructions in Inspector
+    public string npcInstruction; // Initial instruction prompt
+
+    [Header("Quest Settings")]
+    public bool hasQuest = false;
+    public string questItemName; // Name of the item NPC is looking for
+
+    [Header("Quest Prompts")]
+    [TextArea(2, 5)]
+    public string questInProgressPrompt; // Used when player returns without the item
+    [TextArea(2, 5)]
+    public string completedQuestPrompt; // Used when player returns with the item
+
+    [Header("Quest State")]
+    [HideInInspector]
+    public bool questActive = false; // Becomes true after first interaction
+    [HideInInspector]
+    public bool questCompleted = false; // Becomes true after completing the quest
 
     [Header("UI References")]
     [Tooltip("Will be automatically assigned if not set")]
@@ -67,5 +84,36 @@ public class NPCInstruction : MonoBehaviour
         {
             Debug.Log($"[{gameObject.name}] responseText already assigned in inspector");
         }
+    }
+
+    // Get the appropriate instruction based on quest state
+    public string GetCurrentInstruction()
+    {
+        if (!hasQuest)
+        {
+            // NPC doesn't have a quest, use default instruction
+            return npcInstruction;
+        }
+        else if (!questActive)
+        {
+            // First interaction - use initial instruction
+            Debug.Log($"[QUEST INSTRUCTION] Using initial instruction for first interaction with {gameObject.name}");
+            return npcInstruction;
+        }
+        else if (questActive && !questCompleted)
+        {
+            // Quest is active but not completed
+            Debug.Log($"[QUEST INSTRUCTION] Using in-progress prompt for {gameObject.name}");
+            return string.IsNullOrEmpty(questInProgressPrompt) ? npcInstruction : questInProgressPrompt;
+        }
+        else if (questCompleted)
+        {
+            // Quest is completed
+            Debug.Log($"[QUEST INSTRUCTION] Using completion prompt for {gameObject.name}");
+            return string.IsNullOrEmpty(completedQuestPrompt) ? npcInstruction : completedQuestPrompt;
+        }
+
+        // Default fallback
+        return npcInstruction;
     }
 }
