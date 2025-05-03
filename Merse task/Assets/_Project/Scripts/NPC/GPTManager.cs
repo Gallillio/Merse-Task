@@ -165,8 +165,6 @@ public class GPTManager : MonoBehaviour
     {
         if (currentNpcObject != null)
         {
-            Debug.Log("OnGeminiResponse called");
-
             // Add model response to this NPC's conversation history
             List<ChatMessage> npcConversationHistory = GetConversationHistoryForNPC(currentNpcObject);
             npcConversationHistory.Add(new ChatMessage { role = "model", content = response });
@@ -182,15 +180,25 @@ public class GPTManager : MonoBehaviour
             return;
         }
 
+        // Clean the response by removing newlines and trimming
+        response = response.Replace("\n", " ").Replace("\r", "").Trim();
+        Debug.Log($"Cleaned Gemini response: {response}");
+
         // Split response into sentences
         currentSentences = SplitIntoSentences(response);
         currentSentenceIndex = 0;
         awaitingUserAdvance = true;
 
         if (currentSentences.Count > 0)
+        {
             currentResponseText.text = currentSentences[0];
+            Debug.Log($"Displaying first sentence: '{currentSentences[0]}'");
+        }
         else
+        {
             currentResponseText.text = "";
+            Debug.Log("No sentences to display, setting empty text");
+        }
     }
 
     private List<string> SplitIntoSentences(string text)
@@ -198,8 +206,20 @@ public class GPTManager : MonoBehaviour
         var sentences = new List<string>();
         if (string.IsNullOrEmpty(text))
             return sentences;
+
         System.Text.RegularExpressions.Regex regex = new System.Text.RegularExpressions.Regex(@"(?<=[.?!])\s+");
-        sentences.AddRange(regex.Split(text));
+        string[] split = regex.Split(text);
+
+        // Filter out any empty sentences
+        foreach (string sentence in split)
+        {
+            if (!string.IsNullOrWhiteSpace(sentence))
+            {
+                sentences.Add(sentence);
+            }
+        }
+
+        Debug.Log($"Split into {sentences.Count} sentences");
         return sentences;
     }
 
@@ -209,18 +229,43 @@ public class GPTManager : MonoBehaviour
             return;
 
         currentSentenceIndex++;
+        Debug.Log($"Showing sentence {currentSentenceIndex + 1}/{currentSentences.Count}");
+
         if (currentSentenceIndex < currentSentences.Count)
         {
-            currentResponseText.text = currentSentences[currentSentenceIndex];
+            string sentenceToShow = currentSentences[currentSentenceIndex];
+            currentResponseText.text = sentenceToShow;
+            Debug.Log($"Displaying sentence: '{sentenceToShow}'");
         }
         else
         {
-            // Don't set text to empty string before hiding panel
-            // currentResponseText.text = "";
+            // We've shown all sentences - keep the last sentence visible
+            string lastSentence = currentSentences.Count > 0 ? currentSentences[currentSentences.Count - 1] : "";
+            Debug.Log($"Completed displaying full Gemini response. Last sentence was: '{lastSentence}'");
+
+            // Check if we're really clearing the text
+            if (currentResponseText.text == "")
+                Debug.LogWarning("Text is empty after displaying all sentences!");
+            else
+                Debug.Log($"Current displayed text: '{currentResponseText.text}'");
+
+            // Set flag to false so no more button presses are needed
             awaitingUserAdvance = false;
 
-            // No longer hide the spatial panel when done showing sentences
-            // It should remain visible as long as the player is in the trigger area
+            // Hide the spatial panel when finished displaying all sentences
+            if (currentNpcObject != null)
+            {
+                NPCInteractionManager interactionManager = currentNpcObject.GetComponentInChildren<NPCInteractionManager>();
+                if (interactionManager != null)
+                {
+                    interactionManager.HideSpatialPanel();
+                    Debug.Log("Hiding spatial panel after completing response");
+                }
+                else
+                {
+                    Debug.LogWarning("Could not find NPCInteractionManager to hide spatial panel");
+                }
+            }
         }
     }
 
