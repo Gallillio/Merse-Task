@@ -67,13 +67,11 @@ public class QuestManager : MonoBehaviour
                 // Compare by name (case insensitive)
                 if (child.name.ToLower().Contains(itemName.ToLower()))
                 {
-                    Debug.Log($"Found quest item '{itemName}' in player inventory: {child.name}");
                     return true;
                 }
             }
         }
 
-        Debug.Log($"Quest item '{itemName}' not found in player inventory");
         return false;
     }
 
@@ -83,7 +81,6 @@ public class QuestManager : MonoBehaviour
         if (socketTransform != null && !playerInventorySockets.Contains(socketTransform))
         {
             playerInventorySockets.Add(socketTransform);
-            Debug.Log($"Registered inventory socket: {socketTransform.name}");
         }
     }
 }

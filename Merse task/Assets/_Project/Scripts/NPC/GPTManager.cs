@@ -17,6 +17,15 @@ public class GPTManager : MonoBehaviour
     [TextArea(2, 5)]
     public string systemMessage; // Set in Inspector
 
+    [Header("NPC Voice Settings")]
+    [Tooltip("How many characters per second the NPC talks")]
+    [Range(5, 30)]
+    public float charactersPerSecond = 15f;
+    [Tooltip("Minimum sound duration for very short sentences")]
+    public float minimumSoundDuration = 0.5f;
+    [Tooltip("Maximum sound duration for very long sentences")]
+    public float maximumSoundDuration = 6f;
+
     [Header("Input System")]
     public InputActionAsset inputAction; // Assign in Inspector
     private InputAction advanceAction;
@@ -32,6 +41,9 @@ public class GPTManager : MonoBehaviour
     private List<string> currentSentences = new List<string>();
     private int currentSentenceIndex = 0;
     private bool awaitingUserAdvance = false;
+
+    // Sound effects coroutine reference for stopping
+    private Coroutine npcTalkingSoundCoroutine;
 
     void Start()
     {
@@ -88,7 +100,6 @@ public class GPTManager : MonoBehaviour
             if (npcConversationHistories.ContainsKey(npcId))
             {
                 npcConversationHistories[npcId].Clear();
-                Debug.Log($"Cleared conversation history for NPC {npcId}");
 
                 // No longer hide spatial panel when conversation is cleared
                 // It should remain visible as long as the player is in the trigger area
@@ -106,7 +117,7 @@ public class GPTManager : MonoBehaviour
         if (isAutoConversation)
         {
             userInput = "The player approaches.";
-            Debug.Log($"[AUTO CONVERSATION] Using default input for auto-initiated conversation: '{userInput}'");
+            // Debug.Log($"[AUTO CONVERSATION] Using default input for auto-initiated conversation: '{userInput}'");
         }
 
         if (npcObject != null)
@@ -205,6 +216,9 @@ public class GPTManager : MonoBehaviour
         response = response.Replace("\n", " ").Replace("\r", "").Trim();
         // Debug.Log($"Cleaned Gemini response: {response}");
 
+        // Start conversation and lower background music
+        SoundManager.StartConversation();
+
         // Split response into sentences
         currentSentences = SplitIntoSentences(response);
         currentSentenceIndex = 0;
@@ -212,8 +226,13 @@ public class GPTManager : MonoBehaviour
 
         if (currentSentences.Count > 0)
         {
+            // Set the text first
             currentResponseText.text = currentSentences[0];
             // Debug.Log($"Displaying first sentence: '{currentSentences[0]}'");
+
+            // Then play NPC talking sound for the first sentence after a short delay
+            // This ensures the text is visible before the sound plays
+            StartCoroutine(PlayNPCTalkingSoundDelayed(currentSentences[0], 0.1f));
         }
         else
         {
@@ -249,14 +268,22 @@ public class GPTManager : MonoBehaviour
         if (currentResponseText == null)
             return;
 
+        // Stop any currently playing NPC talking sound
+        SoundManager.StopNPCTalking();
+
         currentSentenceIndex++;
-        Debug.Log($"Showing sentence {currentSentenceIndex + 1}/{currentSentences.Count}");
+        // Debug.Log($"Showing sentence {currentSentenceIndex + 1}/{currentSentences.Count}");
 
         if (currentSentenceIndex < currentSentences.Count)
         {
+            // Set the text first
             string sentenceToShow = currentSentences[currentSentenceIndex];
             currentResponseText.text = sentenceToShow;
-            // Debug.Log($"Displaying sentence: '{sentenceToShow}'");
+            Debug.Log($"Displaying sentence: '{sentenceToShow}'");
+
+            // Then play NPC talking sound for this sentence after a short delay
+            // This ensures the text is visible before the sound plays
+            StartCoroutine(PlayNPCTalkingSoundDelayed(sentenceToShow, 0.1f));
         }
         else
         {
@@ -273,6 +300,9 @@ public class GPTManager : MonoBehaviour
             // Set flag to false so no more button presses are needed
             awaitingUserAdvance = false;
 
+            // End conversation and restore background music volume
+            SoundManager.EndConversation();
+
             // Hide the spatial panel when finished displaying all sentences
             if (currentNpcObject != null)
             {
@@ -281,6 +311,15 @@ public class GPTManager : MonoBehaviour
                 {
                     interactionManager.HideSpatialPanel();
                     Debug.Log("Hiding spatial panel after completing response");
+
+                    // Check if this was a quest completion
+                    NPCInstruction npcInstruction = currentNpcObject.GetComponent<NPCInstruction>();
+                    if (npcInstruction != null && npcInstruction.hasQuest && npcInstruction.questCompleted)
+                    {
+                        // Play quest completion sound
+                        SoundManager.PlaySound(SoundType.QuestComplete);
+                        Debug.Log("Playing quest completion sound");
+                    }
                 }
                 else
                 {
@@ -288,6 +327,42 @@ public class GPTManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    // Helper method to play NPC talking sound after a short delay
+    private IEnumerator PlayNPCTalkingSoundDelayed(string text, float delay)
+    {
+        // Wait a short delay for the text to be visibly updated
+        yield return new WaitForSeconds(delay);
+
+        // Then play the sound
+        PlayNPCTalkingSound(text);
+    }
+
+    // Method to play NPC talking sound with duration based on text length
+    private void PlayNPCTalkingSound(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        // Calculate appropriate duration based on text length
+        float duration = Mathf.Clamp(
+            text.Length / charactersPerSecond,
+            minimumSoundDuration,
+            maximumSoundDuration
+        );
+
+        // Use the SoundManager's dedicated method for NPC talking
+        SoundManager.PlayNPCTalkingSound(duration, 1.0f);
+        // Debug.Log($"Playing NPC talking sound for {duration:F2} seconds");
+    }
+
+    // Coroutine to play NPC talking sound for the specified duration
+    private IEnumerator PlayNPCTalkingSoundCoroutine(float duration)
+    {
+        // This method is no longer needed since we're using SoundManager.PlayNPCTalkingSound
+        // But we'll keep it for now to avoid breaking any existing references
+        yield return null;
     }
 
     // Call this to send a message to Gemini

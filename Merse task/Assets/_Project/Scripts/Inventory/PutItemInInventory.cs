@@ -12,6 +12,9 @@ public class PutItemInInventory : MonoBehaviour
     private Transform currentHeldItem;
     private bool wasManuallyGrabbed = false;
 
+    // Track items that have already played their pickup sound
+    private HashSet<Transform> itemsPlayedSound = new HashSet<Transform>();
+
     // Store original local scales before reparenting
     private Dictionary<Transform, Vector3> originalScales = new Dictionary<Transform, Vector3>();
 
@@ -68,9 +71,14 @@ public class PutItemInInventory : MonoBehaviour
         if (args.interactableObject == null)
             return;
 
-        SoundManager.PlaySound(SoundType.PutItemInInventory);
-
         Transform selected = args.interactableObject.transform;
+
+        // Only play sound if this is a new item or was manually grabbed before
+        if (!itemsPlayedSound.Contains(selected) || wasManuallyGrabbed)
+        {
+            SoundManager.PlaySound(SoundType.ItemPickup);
+            itemsPlayedSound.Add(selected);
+        }
 
         // Reset manual grab flag when new item enters socket
         wasManuallyGrabbed = false;
@@ -115,12 +123,16 @@ public class PutItemInInventory : MonoBehaviour
         if (isManualGrab)
         {
             wasManuallyGrabbed = true;
+            // Remove from played sound list when manually grabbed
+            itemsPlayedSound.Remove(selected);
         }
         else if (!isSocketDeactivation)
         {
             // If no interactor is currently selecting it, but it's not deactivation
             // Likely grabbed by something else outside XR system, mark as manually grabbed
             wasManuallyGrabbed = true;
+            // Remove from played sound list when manually grabbed
+            itemsPlayedSound.Remove(selected);
         }
 
         // Return to Collectables if it was manually grabbed by a hand or controller

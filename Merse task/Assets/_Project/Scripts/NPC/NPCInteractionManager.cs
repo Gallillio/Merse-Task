@@ -213,14 +213,14 @@ public class NPCInteractionManager : MonoBehaviour
                     {
                         // Mark quest as completed
                         npcInstruction.questCompleted = true;
-                        Debug.Log($"[QUEST STATE] Player is returning to {npcName} WITH the requested item '{npcInstruction.questItemName}'. Quest COMPLETED!");
+                        // Debug.Log($"[QUEST STATE] Player is returning to {npcName} WITH the requested item '{npcInstruction.questItemName}'. Quest COMPLETED!");
 
                         // Auto-initiate conversation with completed quest prompt
                         StartAutomaticConversation(npcInstruction);
                     }
                     else
                     {
-                        Debug.Log($"[QUEST STATE] Player is returning to {npcName} WITHOUT the requested item '{npcInstruction.questItemName}'. Quest still IN PROGRESS.");
+                        // Debug.Log($"[QUEST STATE] Player is returning to {npcName} WITHOUT the requested item '{npcInstruction.questItemName}'. Quest still IN PROGRESS.");
 
                         // Auto-initiate conversation with in-progress prompt
                         StartAutomaticConversation(npcInstruction);
@@ -230,14 +230,14 @@ public class NPCInteractionManager : MonoBehaviour
                 {
                     // First interaction - but don't mark as active yet
                     // We'll set questActive after first conversation completes
-                    Debug.Log($"[QUEST STATE] Player is meeting {npcName} for the FIRST TIME. Will activate quest for item '{npcInstruction.questItemName}' after conversation.");
+                    // Debug.Log($"[QUEST STATE] Player is meeting {npcName} for the FIRST TIME. Will activate quest for item '{npcInstruction.questItemName}' after conversation.");
 
                     // For first interaction, the player must initiate the conversation
                     // No automatic conversation start here
                 }
                 else if (npcInstruction.questCompleted)
                 {
-                    Debug.Log($"[QUEST STATE] Player is returning to {npcName} with a COMPLETED quest for '{npcInstruction.questItemName}'.");
+                    // Debug.Log($"[QUEST STATE] Player is returning to {npcName} with a COMPLETED quest for '{npcInstruction.questItemName}'.");
 
                     // Auto-initiate conversation with completed quest prompt
                     StartAutomaticConversation(npcInstruction);
@@ -245,7 +245,7 @@ public class NPCInteractionManager : MonoBehaviour
             }
             else if (npcInstruction != null)
             {
-                Debug.Log($"[QUEST STATE] NPC {transform.parent?.name ?? "Unknown"} doesn't have a quest configured.");
+                // Debug.Log($"[QUEST STATE] NPC {transform.parent?.name ?? "Unknown"} doesn't have a quest configured.");
             }
 
             // Show spatial panel when player enters trigger area
@@ -255,7 +255,7 @@ public class NPCInteractionManager : MonoBehaviour
             if (recordAction != null && !recordAction.enabled)
             {
                 recordAction.Enable();
-                Debug.Log($"Recording input enabled for {transform.parent.name}");
+                // Debug.Log($"Recording input enabled for {transform.parent.name}");
             }
         }
     }
@@ -280,6 +280,10 @@ public class NPCInteractionManager : MonoBehaviour
             activeNPC = null;
         }
 
+        // Stop any NPC talking sound and restore background music volume
+        SoundManager.StopNPCTalking();
+        SoundManager.EndConversation();
+
         // Hide spatial panel
         HideSpatialPanel();
 
@@ -300,7 +304,6 @@ public class NPCInteractionManager : MonoBehaviour
         if (gptManager != null && transform.parent != null)
         {
             gptManager.ClearConversationHistoryForNPC(transform.parent.gameObject);
-            // Debug.Log($"Cleared conversation history for {transform.parent.name}");
         }
     }
 
@@ -528,7 +531,6 @@ public class NPCInteractionManager : MonoBehaviour
 
         // Get the appropriate instruction based on quest state
         string currentInstruction = npcInstruction.GetCurrentInstruction();
-        Debug.Log($"[AUTO CONVERSATION] Starting automatic conversation for {npcObject.name} with: {currentInstruction}");
 
         // Use an empty greeting as the user input since the NPC is initiating
         string autoGreeting = ""; // Empty input since NPC is initiating
