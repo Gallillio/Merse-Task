@@ -28,6 +28,13 @@ namespace Core.Interfaces
         void PlayPickupSound(Transform item);
 
         /// <summary>
+        /// Get the stored original scale for an item
+        /// </summary>
+        /// <param name="item">The item to get the scale for</param>
+        /// <returns>The original scale, or Vector3.one if not found</returns>
+        Vector3 GetOriginalScale(Transform item);
+
+        /// <summary>
         /// Event triggered when an item is attached to a socket
         /// </summary>
         event Action<Transform, Transform> OnItemAttached;

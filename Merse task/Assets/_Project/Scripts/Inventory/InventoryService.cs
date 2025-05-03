@@ -11,6 +11,9 @@ namespace Inventory
     /// </summary>
     public class InventoryService : MonoBehaviour, IInventoryService
     {
+        [Header("Configuration")]
+        [SerializeField] private float socketScaleMultiplier = 10f;
+
         [Header("References")]
         [SerializeField] private Transform collectablesParent;
 
@@ -61,18 +64,26 @@ namespace Inventory
                 return;
             }
 
-            // Store original scale before modifying
+            // Store original scale before modifying, but only if we don't already have it
             if (!originalScales.ContainsKey(item))
             {
                 originalScales[item] = item.localScale;
-                logger?.Log($"Stored original scale for {item.name}");
+                logger?.Log($"Stored original scale for {item.name}: {item.localScale}");
+            }
+            else
+            {
+                // First reset to original scale to prevent cumulative scaling
+                item.localScale = originalScales[item];
+                logger?.Log($"Reset to original scale for {item.name}: {item.localScale}");
             }
 
             // Parent to the socket
             item.SetParent(socket, true); // true = maintain world pos/rot
 
-            // Apply socket-specific scale adjustment (commonly used in VR)
-            item.localScale *= 10f;
+            // Apply ABSOLUTE scale based on original scale (prevents cumulative scaling)
+            Vector3 targetScale = originalScales[item] * socketScaleMultiplier;
+            item.localScale = targetScale;
+            logger?.Log($"Applied socket scale for {item.name}: {targetScale}");
 
             // Trigger event
             OnItemAttached?.Invoke(item, socket);
@@ -92,23 +103,21 @@ namespace Inventory
                 return;
             }
 
+            // Restore original scale BEFORE reparenting
+            if (originalScales.TryGetValue(item, out Vector3 originalScale))
+            {
+                item.localScale = originalScale;
+                logger?.Log($"Restored original scale for {item.name}: {originalScale}");
+            }
+
             // Move the item back to collectables if available
             if (collectablesParent != null)
             {
-                // First reparent to collectables
+                // Reparent to collectables
                 item.SetParent(collectablesParent, true);
 
-                // Restore original scale
-                if (originalScales.TryGetValue(item, out Vector3 originalScale))
-                {
-                    item.localScale = originalScale;
-                    originalScales.Remove(item);
-                }
-                else
-                {
-                    logger?.LogWarning($"Failed to find original scale for {item.name}");
-                }
-
+                // Remove from tracking when fully detached
+                originalScales.Remove(item);
                 logger?.Log($"Item {item.name} detached and returned to collectables");
             }
             else

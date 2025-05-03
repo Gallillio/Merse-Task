@@ -91,8 +91,19 @@ namespace Inventory
             socketInteractor.selectEntered.RemoveListener(OnSelectEntered);
             socketInteractor.selectExited.RemoveListener(OnSelectExited);
 
-            // Don't return the item to Collectables when socket is disabled
-            // The item will be re-attached when the socket is re-enabled
+            // Reset item scale when socket is disabled to prevent scaling issues
+            if (currentHeldItem != null && inventoryService != null)
+            {
+                // Get the original scale from inventory service and apply it
+                Vector3 originalScale = inventoryService.GetOriginalScale(currentHeldItem);
+
+                // Only apply if different to avoid unnecessary operations
+                if (currentHeldItem.localScale != originalScale)
+                {
+                    currentHeldItem.localScale = originalScale;
+                    logger?.Log($"Reset scale on disable for {currentHeldItem.name}: {originalScale}");
+                }
+            }
         }
 
         /// <summary>
