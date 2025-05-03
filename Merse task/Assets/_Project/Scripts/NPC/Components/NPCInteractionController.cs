@@ -36,6 +36,7 @@ public class NPCInteractionController : MonoBehaviour
     private string transcribedText = "";
     private bool hasSpeechBeenDetected = false;
     private float recordingStartTime = 0f;
+    private string lastProcessedText = ""; // Track last processed text to avoid duplicates
 
     // Add a unique identifier for this NPC
     [SerializeField] private string npcId;
@@ -366,6 +367,7 @@ public class NPCInteractionController : MonoBehaviour
 
         // Reset variables
         transcribedText = "";
+        lastProcessedText = ""; // Reset duplicate detection
         hasSpeechBeenDetected = false;
         recordingStartTime = Time.time;
 
@@ -466,6 +468,16 @@ public class NPCInteractionController : MonoBehaviour
         if (!string.IsNullOrWhiteSpace(segment.Text))
         {
             transcribedText = segment.Text.Trim();
+
+            // Skip duplicate transcriptions from the same recording session
+            if (transcribedText == lastProcessedText)
+            {
+                loggingService.Log($"Skipping duplicate transcription: {transcribedText}");
+                return;
+            }
+
+            // Store this text to avoid duplicates
+            lastProcessedText = transcribedText;
             loggingService.Log($"Transcribed: {transcribedText}");
 
             // Get current prompt from NPC state
