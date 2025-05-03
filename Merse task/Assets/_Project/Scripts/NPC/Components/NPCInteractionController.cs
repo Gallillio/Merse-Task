@@ -23,6 +23,7 @@ public class NPCInteractionController : MonoBehaviour
     private IDialogueProvider dialogueProvider;
     private IQuestService questService;
     private ILoggingService loggingService;
+    private IActiveConversationManager activeConversationManager;
 
     private NPCQuestState questState;
     private NPCInstructionUI instructionUI;
@@ -49,6 +50,7 @@ public class NPCInteractionController : MonoBehaviour
         dialogueProvider = ServiceLocator.Get<IDialogueProvider>();
         questService = ServiceLocator.Get<IQuestService>();
         loggingService = ServiceLocator.Get<ILoggingService>();
+        activeConversationManager = ServiceLocator.Get<IActiveConversationManager>();
 
         // Generate unique ID if not set
         if (string.IsNullOrEmpty(npcId))
@@ -79,6 +81,12 @@ public class NPCInteractionController : MonoBehaviour
         if (dialogueProvider != null)
         {
             dialogueProvider.OnDialogueCompleted += OnDialogueCompleted;
+        }
+
+        // Subscribe to active conversation events
+        if (activeConversationManager != null)
+        {
+            activeConversationManager.OnConversationEnded += OnActiveConversationEnded;
         }
     }
 
@@ -153,8 +161,6 @@ public class NPCInteractionController : MonoBehaviour
 
     private void OnDestroy()
     {
-        // No need to check for active NPC reference
-
         // Clean up event listeners
         if (microphoneRecordManager != null)
         {
@@ -173,6 +179,18 @@ public class NPCInteractionController : MonoBehaviour
             dialogueProvider.OnDialogueCompleted -= OnDialogueCompleted;
         }
 
+        // Unsubscribe from active conversation events
+        if (activeConversationManager != null)
+        {
+            activeConversationManager.OnConversationEnded -= OnActiveConversationEnded;
+
+            // If this NPC is the active conversation partner, end the conversation
+            if (activeConversationManager.CurrentConversationPartner == gameObject)
+            {
+                activeConversationManager.EndConversation();
+            }
+        }
+
         // Disable input action if it was enabled
         if (recordAction != null && recordAction.enabled)
         {
@@ -182,16 +200,30 @@ public class NPCInteractionController : MonoBehaviour
 
     public void OnPlayerEntered()
     {
-        // Allow multiple NPCs to be active at once
+        // Register player in trigger area
         playerInTriggerArea = true;
 
         // Show UI
         instructionUI.ShowSpatialPanel();
 
-        // Enable input
-        if (recordAction != null && !recordAction.enabled)
+        // Try to become the active conversation partner if no conversation is active
+        bool canActivate = activeConversationManager == null ||
+                          activeConversationManager.CurrentConversationPartner == null ||
+                          activeConversationManager.CurrentConversationPartner == gameObject;
+
+        if (canActivate)
         {
-            recordAction.Enable();
+            // Enable input
+            if (recordAction != null && !recordAction.enabled)
+            {
+                recordAction.Enable();
+            }
+
+            // Register as active conversation partner
+            if (activeConversationManager != null)
+            {
+                activeConversationManager.TryStartConversation(gameObject);
+            }
         }
 
         // Handle quest state
@@ -218,8 +250,12 @@ public class NPCInteractionController : MonoBehaviour
         // Stop audio for this NPC only
         audioService.StopNPCVoice();
 
-        // Don't end conversation globally, as other NPCs might be active
-        // audioService.EndConversation(); 
+        // End conversation if this NPC is the active one
+        if (activeConversationManager != null &&
+            activeConversationManager.CurrentConversationPartner == gameObject)
+        {
+            activeConversationManager.EndConversation();
+        }
     }
 
     private void DeactivateNPC()
@@ -415,6 +451,17 @@ public class NPCInteractionController : MonoBehaviour
 
     private void OnNewSegment(WhisperSegment segment)
     {
+        // Only process if this NPC is the active conversation partner
+        bool isActiveNPC = activeConversationManager == null ||
+                          activeConversationManager.CurrentConversationPartner == null ||
+                          activeConversationManager.CurrentConversationPartner == gameObject;
+
+        if (!isActiveNPC || !playerInTriggerArea)
+        {
+            // Ignore speech for non-active NPCs
+            return;
+        }
+
         // Process the transcribed text segment
         if (!string.IsNullOrWhiteSpace(segment.Text))
         {
@@ -467,7 +514,10 @@ public class NPCInteractionController : MonoBehaviour
     private void OnDialogueCompleted()
     {
         // Only hide the panel if this is the active NPC
-        if (playerInTriggerArea)
+        bool isActiveNPC = activeConversationManager == null ||
+                           activeConversationManager.CurrentConversationPartner == gameObject;
+
+        if (playerInTriggerArea && isActiveNPC)
         {
             loggingService.Log("Dialogue completed, hiding spatial panel");
 
@@ -482,6 +532,19 @@ public class NPCInteractionController : MonoBehaviour
             // Hide the panel immediately instead of using a delay
             instructionUI.HideSpatialPanel();
             audioService.EndConversation();
+
+            // End this conversation
+            if (activeConversationManager != null)
+            {
+                activeConversationManager.EndConversation();
+            }
         }
+    }
+
+    private void OnActiveConversationEnded()
+    {
+        // Handle the end of an active conversation
+        loggingService.Log("Active conversation ended");
+        // Add any necessary logic here
     }
 }

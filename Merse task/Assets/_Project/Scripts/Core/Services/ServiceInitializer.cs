@@ -13,6 +13,7 @@ namespace Core.Services
         [SerializeField] private MonoBehaviour dialogueProviderImplementation;
         [SerializeField] private MonoBehaviour questServiceImplementation;
         [SerializeField] private MonoBehaviour inventoryServiceImplementation;
+        [SerializeField] private MonoBehaviour activeConversationManagerImplementation;
 
         [Header("Debug")]
         [SerializeField] private bool logServiceRegistration = true;
@@ -38,6 +39,7 @@ namespace Core.Services
             RegisterService<IDialogueProvider>(dialogueProviderImplementation);
             RegisterService<IQuestService>(questServiceImplementation);
             RegisterService<IInventoryService>(inventoryServiceImplementation);
+            RegisterService<IActiveConversationManager>(activeConversationManagerImplementation);
 
             // Create and register logging service
             LoggingService loggingService = new LoggingService(logServiceRegistration);
