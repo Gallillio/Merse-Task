@@ -151,14 +151,14 @@ namespace Dialogue
         /// </summary>
         private TMP_Text FindResponseTextComponent(GameObject npcObject)
         {
-            // Look for NPCInstruction component on the NPC
-            var npcInstructionComponent = npcObject.GetComponent<NPCInstruction>();
+            // Look for NPCInstructionUI component on the NPC
+            var npcInstructionComponent = npcObject.GetComponent<NPCInstructionUI>();
 
             // If not found on the parent object, try looking in children
             if (npcInstructionComponent == null)
             {
-                logger?.Log($"NPCInstruction not found on {npcObject.name}, searching in children...");
-                npcInstructionComponent = npcObject.GetComponentInChildren<NPCInstruction>();
+                logger?.Log($"NPCInstructionUI not found on {npcObject.name}, searching in children...");
+                npcInstructionComponent = npcObject.GetComponentInChildren<NPCInstructionUI>();
             }
 
             // If found, check the responseText
@@ -278,17 +278,5 @@ namespace Dialogue
             // Forward event to subscribers
             OnDialogueCompleted?.Invoke();
         }
-    }
-
-    /// <summary>
-    /// Placeholder stub for NPCInstruction component to make compilation work
-    /// This class will be implemented in a later phase
-    /// </summary>
-    public class NPCInstruction : MonoBehaviour
-    {
-        public TMP_Text responseText;
-        public string npcInstruction;
-        public bool hasQuest;
-        public bool questCompleted;
     }
 }

@@ -10,6 +10,7 @@ public class NPCInstructionUI : MonoBehaviour
 {
     [SerializeField] private GameObject spatialPanelModel;
     [SerializeField] private GameObject listeningIcon;
+    [SerializeField] private TMP_Text responseTextComponent;
 
     [HideInInspector] public TMP_Text responseText;
 
@@ -39,12 +40,34 @@ public class NPCInstructionUI : MonoBehaviour
             }
         }
 
-        // Auto-find the response text
-        responseText = GetComponentInChildren<TMP_Text>();
-        if (responseText == null)
+        // Auto-find the response text if not assigned
+        if (responseTextComponent == null && spatialPanelModel != null)
         {
-            loggingService.LogWarning("Could not find TMP_Text component in children");
+            // Try to find the text component in the hierarchy using the exact path
+            Transform cardRoot = spatialPanelModel.transform.Find("CoachingCardRoot");
+            if (cardRoot != null)
+            {
+                Transform card1 = cardRoot.Find("Card 1");
+                if (card1 != null)
+                {
+                    responseTextComponent = card1.Find("GPT Response Text")?.GetComponent<TMP_Text>();
+                }
+            }
+
+            // If not found via path, try generic search
+            if (responseTextComponent == null)
+            {
+                responseTextComponent = spatialPanelModel.GetComponentInChildren<TMP_Text>(true);
+            }
+
+            if (responseTextComponent == null)
+            {
+                loggingService.LogWarning("Could not find TMP_Text component in children of _Spatial Panel Manipulator Model");
+            }
         }
+
+        // Assign the public reference
+        responseText = responseTextComponent;
 
         // Hide UI elements initially
         HideSpatialPanel();

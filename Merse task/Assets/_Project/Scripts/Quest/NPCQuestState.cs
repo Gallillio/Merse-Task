@@ -102,8 +102,8 @@ namespace Quest
                 questRewardObject.SetActive(true);
             }
 
-            // Play quest complete sound
-            audioService?.Play(Core.Interfaces.SoundType.QuestComplete);
+            // We no longer play the sound here - it will be played when dialogue completes
+            // audioService?.Play(Core.Interfaces.SoundType.QuestComplete);
 
             logger?.Log($"Quest completed for NPC {gameObject.name}, item: {questItemName}");
         }

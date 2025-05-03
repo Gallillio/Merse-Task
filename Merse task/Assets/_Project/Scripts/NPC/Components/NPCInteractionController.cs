@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Core.Interfaces;
 using Core.Services;
 using Quest;
+using System.Collections;
 
 /// <summary>
 /// Main controller for NPC interactions, managing dialogue, quests, and player input.
@@ -38,6 +39,9 @@ public class NPCInteractionController : MonoBehaviour
     // Static reference to track which NPC is currently active
     private static NPCInteractionController activeNPC = null;
 
+    // Add a field to track if a quest was just completed
+    private bool justCompletedQuest = false;
+
     private void Awake()
     {
         // Get services
@@ -63,6 +67,12 @@ public class NPCInteractionController : MonoBehaviour
 
         // Setup microphone and whisper events
         SetupSpeechRecognition();
+
+        // Subscribe to dialogue completion event
+        if (dialogueProvider != null)
+        {
+            dialogueProvider.OnDialogueCompleted += OnDialogueCompleted;
+        }
     }
 
     private void FindRequiredManagers()
@@ -154,6 +164,12 @@ public class NPCInteractionController : MonoBehaviour
             whisperManager.OnNewSegment -= OnNewSegment;
         }
 
+        // Unsubscribe from dialogue completion event
+        if (dialogueProvider != null)
+        {
+            dialogueProvider.OnDialogueCompleted -= OnDialogueCompleted;
+        }
+
         // Disable input action if it was enabled
         if (recordAction != null && recordAction.enabled)
         {
@@ -241,19 +257,16 @@ public class NPCInteractionController : MonoBehaviour
             bool hasQuestItem = questService.HasItem(questState.questItemName);
             if (hasQuestItem)
             {
-                // Mark quest as completed
-                questState.questCompleted = true;
                 loggingService.Log($"Player is returning with requested item '{questState.questItemName}'. Quest completed!");
 
-                // Find and activate reward object
-                ActivateQuestRewardObject(questState.questItemName);
+                // Use the proper CompleteQuest method which:
+                // 1. Marks quest as completed
+                // 2. Removes and destroys the quest item
+                // 3. Activates the reward object
+                questState.CompleteQuest();
 
-                // Remove item from inventory
-                GameObject removedItem = questService.RemoveItem(questState.questItemName);
-                if (removedItem != null)
-                {
-                    loggingService.Log($"Removed quest item '{questState.questItemName}' from inventory");
-                }
+                // Set the flag to indicate a quest was just completed
+                justCompletedQuest = true;
 
                 // Auto-start conversation
                 StartAutomaticConversation();
@@ -285,7 +298,9 @@ public class NPCInteractionController : MonoBehaviour
 
             if (!string.IsNullOrEmpty(currentPrompt))
             {
-                dialogueProvider.StartDialogue(gameObject, currentPrompt, "You are a helpful assistant", response =>
+                // Use empty string as user input for auto-conversation
+                // Use the NPC's prompt as the instruction
+                dialogueProvider.StartDialogue(gameObject, "", currentPrompt, response =>
                 {
                     loggingService.Log("Automatic conversation response received");
 
@@ -420,6 +435,7 @@ public class NPCInteractionController : MonoBehaviour
             {
                 // Use the appropriate prompt based on quest state
                 string currentPrompt = questState.GetCurrentPrompt();
+                instructionPrompt = currentPrompt; // Use the NPC's prompt as the instruction
 
                 // Start the dialogue
                 dialogueProvider.StartDialogue(gameObject, transcribedText, instructionPrompt, response =>
@@ -452,6 +468,28 @@ public class NPCInteractionController : MonoBehaviour
                     break;
                 }
             }
+        }
+    }
+
+    // Add a method to handle dialogue completion
+    private void OnDialogueCompleted()
+    {
+        // Only hide the panel if this is the active NPC
+        if (activeNPC == this)
+        {
+            loggingService.Log("Dialogue completed, hiding spatial panel");
+
+            // Play the quest completion sound if a quest was just completed
+            if (justCompletedQuest)
+            {
+                audioService.Play(Core.Interfaces.SoundType.QuestComplete);
+                justCompletedQuest = false; // Reset the flag
+                loggingService.Log("Playing quest completion sound");
+            }
+
+            // Hide the panel immediately instead of using a delay
+            instructionUI.HideSpatialPanel();
+            audioService.EndConversation();
         }
     }
 }

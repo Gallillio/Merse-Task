@@ -1,12 +1,15 @@
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.XR.Interaction.Toolkit;
+using Core.Interfaces;
+using Core.Services;
 
 // [RequireComponent(typeof(UnityEngine.XR.Interaction.Toolkit.Interactors.XRSocketInteractor))]
 public class PutItemInInventory : MonoBehaviour
 {
     private UnityEngine.XR.Interaction.Toolkit.Interactors.XRSocketInteractor socketInteractor;
     private Transform collectablesParent;
+    private IAudioService audioService;
 
     // Track the currently held item
     private Transform currentHeldItem;
@@ -28,6 +31,9 @@ public class PutItemInInventory : MonoBehaviour
         {
             Debug.LogWarning("Collectables GameObject not found in scene!");
         }
+
+        // Get audio service reference
+        audioService = ServiceLocator.Get<IAudioService>();
     }
 
     private void OnEnable()
@@ -42,13 +48,20 @@ public class PutItemInInventory : MonoBehaviour
             var interactable = currentHeldItem.GetComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseInteractable>();
             if (interactable != null && !interactable.isSelected)
             {
+                // First, restore original scale to ensure we're starting with the base scale
+                if (originalScales.TryGetValue(currentHeldItem, out Vector3 originalScale))
+                {
+                    // Apply the original scale first
+                    currentHeldItem.localScale = originalScale;
+                }
+
                 // Re-attach it to the socket
                 currentHeldItem.SetParent(transform, true);
 
-                // Re-apply the scale
-                if (originalScales.TryGetValue(currentHeldItem, out Vector3 originalScale))
+                // Apply the socket scaling - use a fixed multiplier to avoid cumulative scaling
+                if (originalScales.TryGetValue(currentHeldItem, out Vector3 baseScale))
                 {
-                    currentHeldItem.localScale = originalScale * 10f;
+                    currentHeldItem.localScale = baseScale * 10f;
                 }
 
                 // Try to re-select it using the socket interactor
@@ -64,6 +77,15 @@ public class PutItemInInventory : MonoBehaviour
 
         // Don't return the item to Collectables when socket is disabled
         // The item will be re-attached when the socket is re-enabled
+
+        // Reset the item to its original scale to prevent cumulative scaling
+        if (currentHeldItem != null)
+        {
+            if (originalScales.TryGetValue(currentHeldItem, out Vector3 originalScale))
+            {
+                currentHeldItem.localScale = originalScale;
+            }
+        }
     }
 
     private void OnSelectEntered(SelectEnterEventArgs args)
@@ -76,7 +98,7 @@ public class PutItemInInventory : MonoBehaviour
         // Only play sound if this is a new item or was manually grabbed before
         if (!itemsPlayedSound.Contains(selected) || wasManuallyGrabbed)
         {
-            SoundManager.PlaySound(SoundType.ItemPickup);
+            audioService.Play(Core.Interfaces.SoundType.ItemPickup);
             itemsPlayedSound.Add(selected);
         }
 
@@ -86,19 +108,24 @@ public class PutItemInInventory : MonoBehaviour
         // Track the current held item
         currentHeldItem = selected;
 
-        // Store original local scale before modifying
+        // Store original local scale before modifying, only if we don't already have it
         if (!originalScales.ContainsKey(selected))
         {
             originalScales[selected] = selected.localScale;
+            Debug.Log($"Storing original scale for {selected.name}: {selected.localScale}");
         }
-
-        // Store world scale before parenting
-        Vector3 worldScale = selected.lossyScale;
+        else
+        {
+            // Ensure item has original scale before we modify it again
+            selected.localScale = originalScales[selected];
+        }
 
         // Parent to the socket
         selected.SetParent(transform, true); // true = maintain world pos/rot
 
-        selected.localScale *= 10f;
+        // Apply fixed scaling
+        selected.localScale = originalScales[selected] * 10f;
+        Debug.Log($"Applied socket scale for {selected.name}: {selected.localScale}");
     }
 
     private void OnSelectExited(SelectExitEventArgs args)
