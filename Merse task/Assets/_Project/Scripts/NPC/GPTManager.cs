@@ -99,7 +99,17 @@ public class GPTManager : MonoBehaviour
     // Overload to support sending custom instructions
     public void TrySendInput(string userInput, GameObject npcObject, string customInstruction = null)
     {
-        if (!string.IsNullOrEmpty(userInput) && npcObject != null)
+        // Check if this is an automatic conversation (empty user input)
+        bool isAutoConversation = string.IsNullOrWhiteSpace(userInput);
+
+        // For automatic conversations, we'll use a default greeting/acknowledgment
+        if (isAutoConversation)
+        {
+            userInput = "The player approaches.";
+            Debug.Log($"[AUTO CONVERSATION] Using default input for auto-initiated conversation: '{userInput}'");
+        }
+
+        if (npcObject != null)
         {
             // Debug.Log($"TrySendInput called for NPC: {npcObject.name}");
 
@@ -144,6 +154,13 @@ public class GPTManager : MonoBehaviour
             // Get this NPC's conversation history
             List<ChatMessage> npcConversationHistory = GetConversationHistoryForNPC(npcObject);
 
+            // For auto-conversations, we may want to clear any previous history to start fresh
+            if (isAutoConversation)
+            {
+                npcConversationHistory.Clear();
+                Debug.Log($"[AUTO CONVERSATION] Cleared conversation history for auto-initiated conversation with {npcObject.name}");
+            }
+
             // Add user message to this NPC's conversation history
             npcConversationHistory.Add(new ChatMessage { role = "user", content = userInput });
 
@@ -161,8 +178,7 @@ public class GPTManager : MonoBehaviour
         }
         else
         {
-            Debug.LogError("Cannot process input: " +
-                (string.IsNullOrEmpty(userInput) ? "Empty user input" : "No NPC object provided"));
+            Debug.LogError("Cannot process input: No NPC object provided");
         }
     }
 
