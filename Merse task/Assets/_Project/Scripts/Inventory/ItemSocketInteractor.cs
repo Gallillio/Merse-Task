@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine.XR.Interaction.Toolkit;
 using Core.Interfaces;
 using Core.Services;
+using System;
 
 namespace Inventory
 {
@@ -27,6 +28,11 @@ namespace Inventory
 
         // Track items that have already played their pickup sound
         private HashSet<Transform> itemsPlayedSound = new HashSet<Transform>();
+
+        /// <summary>
+        /// Event that fires when an item is picked up by this socket
+        /// </summary>
+        public event Action<GameObject> OnItemPickedUp;
 
         /// <summary>
         /// Initialize components and find references
@@ -145,6 +151,9 @@ namespace Inventory
             inventoryService.AttachItem(selected, transform);
 
             Debug.Log($"DEBUG [AFTER SOCKET ATTACH] Socket: {gameObject.name}, Item: {selected.name}, Scale before: {scaleBefore}, Scale after: {selected.localScale}");
+
+            // Trigger the OnItemPickedUp event
+            OnItemPickedUp?.Invoke(selected.gameObject);
         }
 
         /// <summary>

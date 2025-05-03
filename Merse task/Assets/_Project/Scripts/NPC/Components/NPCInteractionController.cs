@@ -39,7 +39,7 @@ public class NPCInteractionController : MonoBehaviour
     private string lastProcessedText = ""; // Track last processed text to avoid duplicates
 
     // Add a unique identifier for this NPC
-    [SerializeField] private string npcId;
+    private string npcId;
 
     // Add a field to track if a quest was just completed
     private bool justCompletedQuest = false;
