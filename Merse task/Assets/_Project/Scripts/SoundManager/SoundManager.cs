@@ -100,7 +100,6 @@ public class SoundManager : MonoBehaviour
             instance.backgroundMusicVolume = instance.audioSource.volume;
             // Lower the volume by the ducking amount
             instance.audioSource.volume = instance.backgroundMusicVolume * instance.musicDuckingAmount;
-            Debug.Log($"Started conversation - lowered music volume from {instance.backgroundMusicVolume:F2} to {instance.audioSource.volume:F2}");
         }
     }
 
@@ -117,7 +116,6 @@ public class SoundManager : MonoBehaviour
         if (instance.audioSource.isPlaying && instance.backgroundMusicVolume > 0)
         {
             instance.audioSource.volume = instance.backgroundMusicVolume;
-            Debug.Log($"Ended conversation - restored music volume to {instance.backgroundMusicVolume:F2}");
         }
     }
 
@@ -168,7 +166,6 @@ public class SoundManager : MonoBehaviour
         if (instance.npcTalkingAudioSource.isPlaying)
         {
             instance.npcTalkingAudioSource.Stop();
-            Debug.Log($"NPC talking sound completed after {duration:F2}s");
 
             // Don't restore background music volume here - we want it to stay lowered
             // until the entire conversation is over

@@ -169,7 +169,6 @@ public class GPTManager : MonoBehaviour
             if (isAutoConversation)
             {
                 npcConversationHistory.Clear();
-                Debug.Log($"[AUTO CONVERSATION] Cleared conversation history for auto-initiated conversation with {npcObject.name}");
             }
 
             // Add user message to this NPC's conversation history
@@ -289,13 +288,10 @@ public class GPTManager : MonoBehaviour
         {
             // We've shown all sentences - keep the last sentence visible
             string lastSentence = currentSentences.Count > 0 ? currentSentences[currentSentences.Count - 1] : "";
-            Debug.Log($"Completed displaying full Gemini response. Last sentence was: '{lastSentence}'");
 
             // Check if we're really clearing the text
             if (currentResponseText.text == "")
                 Debug.LogWarning("Text is empty after displaying all sentences!");
-            else
-                Debug.Log($"Current displayed text: '{currentResponseText.text}'");
 
             // Set flag to false so no more button presses are needed
             awaitingUserAdvance = false;
@@ -310,7 +306,6 @@ public class GPTManager : MonoBehaviour
                 if (interactionManager != null)
                 {
                     interactionManager.HideSpatialPanel();
-                    Debug.Log("Hiding spatial panel after completing response");
 
                     // Check if this was a quest completion
                     NPCInstruction npcInstruction = currentNpcObject.GetComponent<NPCInstruction>();
@@ -318,7 +313,6 @@ public class GPTManager : MonoBehaviour
                     {
                         // Play quest completion sound
                         SoundManager.PlaySound(SoundType.QuestComplete);
-                        Debug.Log("Playing quest completion sound");
                     }
                 }
                 else
@@ -354,7 +348,6 @@ public class GPTManager : MonoBehaviour
 
         // Use the SoundManager's dedicated method for NPC talking
         SoundManager.PlayNPCTalkingSound(duration, 1.0f);
-        // Debug.Log($"Playing NPC talking sound for {duration:F2} seconds");
     }
 
     // Coroutine to play NPC talking sound for the specified duration

@@ -215,6 +215,12 @@ public class NPCInteractionManager : MonoBehaviour
                         npcInstruction.questCompleted = true;
                         // Debug.Log($"[QUEST STATE] Player is returning to {npcName} WITH the requested item '{npcInstruction.questItemName}'. Quest COMPLETED!");
 
+                        // Find and activate the matching child GameObject on the NPC
+                        ActivateQuestRewardObject(npcInstruction.questItemName);
+
+                        // Find and remove the quest item from player's inventory
+                        RemoveQuestItemFromInventory(npcInstruction.questItemName);
+
                         // Auto-initiate conversation with completed quest prompt
                         StartAutomaticConversation(npcInstruction);
                     }
@@ -537,5 +543,45 @@ public class NPCInteractionManager : MonoBehaviour
 
         // Send to GPT Manager
         gptManager.TrySendInput(autoGreeting, npcObject, currentInstruction);
+    }
+
+    // Helper method to find and activate the child GameObject matching the quest item name
+    private void ActivateQuestRewardObject(string questItemName)
+    {
+        if (string.IsNullOrEmpty(questItemName) || transform.parent == null)
+            return;
+
+        // Look for a child with the matching name in the NPC's hierarchy
+        Transform rewardObject = transform.parent.Find(questItemName);
+
+        if (rewardObject != null)
+        {
+            // Enable the reward object
+            rewardObject.gameObject.SetActive(true);
+            Debug.Log($"Activated quest reward object '{questItemName}' on NPC {transform.parent.name}");
+        }
+        else
+        {
+            Debug.LogWarning($"Could not find child GameObject named '{questItemName}' on NPC {transform.parent.name}");
+        }
+    }
+
+    // Helper method to find and remove the quest item from player's inventory
+    private void RemoveQuestItemFromInventory(string questItemName)
+    {
+        if (string.IsNullOrEmpty(questItemName))
+            return;
+
+        // Ask QuestManager to find and remove the item
+        GameObject removedItem = QuestManager.Instance.RemoveItem(questItemName);
+
+        if (removedItem != null)
+        {
+            Debug.Log($"Removed quest item '{removedItem.name}' from player's inventory");
+        }
+        else
+        {
+            Debug.LogWarning($"Could not find and remove quest item '{questItemName}' from inventory");
+        }
     }
 }

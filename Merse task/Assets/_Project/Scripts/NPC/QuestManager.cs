@@ -67,12 +67,53 @@ public class QuestManager : MonoBehaviour
                 // Compare by name (case insensitive)
                 if (child.name.ToLower().Contains(itemName.ToLower()))
                 {
+                    Debug.Log($"Found quest item '{itemName}' in player inventory: {child.name}");
                     return true;
                 }
             }
         }
 
+        Debug.Log($"Quest item '{itemName}' not found in player inventory");
         return false;
+    }
+
+    // Find and remove an item with the specified name from any inventory socket
+    // Returns the removed GameObject (or null if not found/removed)
+    public GameObject RemoveItem(string itemName)
+    {
+        if (string.IsNullOrEmpty(itemName))
+        {
+            Debug.LogWarning("Trying to remove item with empty name");
+            return null;
+        }
+
+        foreach (Transform socket in playerInventorySockets)
+        {
+            if (socket == null) continue;
+
+            // Check all children of this socket
+            foreach (Transform child in socket)
+            {
+                // Compare by name (case insensitive)
+                if (child.name.ToLower().Contains(itemName.ToLower()))
+                {
+                    // Save reference to the GameObject before destroying
+                    GameObject itemToRemove = child.gameObject;
+
+                    // Detach from parent first to prevent issues
+                    child.SetParent(null);
+
+                    // Destroy the object
+                    Destroy(itemToRemove);
+
+                    Debug.Log($"Removed quest item '{itemName}' from socket {socket.name}");
+                    return itemToRemove;
+                }
+            }
+        }
+
+        Debug.LogWarning($"Could not find quest item '{itemName}' to remove from inventory");
+        return null;
     }
 
     // Utility method to register an inventory socket
@@ -81,6 +122,7 @@ public class QuestManager : MonoBehaviour
         if (socketTransform != null && !playerInventorySockets.Contains(socketTransform))
         {
             playerInventorySockets.Add(socketTransform);
+            Debug.Log($"Registered inventory socket: {socketTransform.name}");
         }
     }
 }
