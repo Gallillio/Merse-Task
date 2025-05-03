@@ -14,6 +14,11 @@ namespace Inventory
         [Header("References")]
         [SerializeField] private Transform collectablesParent;
 
+        [Header("Socket Visuals")]
+        [SerializeField] private bool enableHoverFeedback = true;
+        [SerializeField] private Color hoverColor = Color.red;
+        [SerializeField] private Color defaultColor = Color.white;
+
         [Header("Debug")]
         [SerializeField] private bool verboseLogging = true;
 
@@ -49,6 +54,22 @@ namespace Inventory
             {
                 logger?.LogWarning("AudioService not available in InventoryService");
             }
+
+            // Add hover visual feedback to all sockets if enabled
+            if (enableHoverFeedback)
+            {
+                SetupSocketHoverVisuals();
+            }
+        }
+
+        /// <summary>
+        /// Add hover visual feedback to all inventory sockets in the scene
+        /// </summary>
+        private void SetupSocketHoverVisuals()
+        {
+            ItemSocketInteractorExtensions.ConfigureHoverVisualForAllSockets(hoverColor, defaultColor);
+
+            logger?.Log("Added hover visual feedback to all inventory sockets");
         }
 
         /// <summary>

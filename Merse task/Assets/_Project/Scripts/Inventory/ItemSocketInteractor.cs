@@ -4,6 +4,7 @@ using UnityEngine.XR.Interaction.Toolkit;
 using Core.Interfaces;
 using Core.Services;
 using System;
+using UnityEngine.UI;
 
 namespace Inventory
 {
@@ -17,10 +18,24 @@ namespace Inventory
         [SerializeField, Tooltip("Scale multiplier applied when socket is disabled")]
         private float scaleMultiplier = 4.04f;
 
+        [Header("Hover Visual Settings")]
+        [Tooltip("Enable hover visual feedback")]
+        [SerializeField] private bool enableHoverVisual = true;
+
+        [Tooltip("Color when an item is hovering over the socket")]
+        [SerializeField] private Color hoverColor = Color.red;
+
+        [Tooltip("Default color of the socket when not being hovered")]
+        [SerializeField] private Color defaultColor = Color.white;
+
+        [Tooltip("Path to the Image component relative to this GameObject (e.g. 'Slot Canvas/Slot Image')")]
+        private string slotImagePath = "Slot Canvas/Slot Image";
+
         private UnityEngine.XR.Interaction.Toolkit.Interactors.XRSocketInteractor socketInteractor;
         private IInventoryService inventoryService;
         private IQuestService questService;
         private ILoggingService logger;
+        private Image slotImage;
 
         // Track the currently held item
         private Transform currentHeldItem;
@@ -47,6 +62,33 @@ namespace Inventory
                 enabled = false;
                 return;
             }
+
+            // Initialize hover visuals if enabled
+            if (enableHoverVisual)
+            {
+                InitializeHoverVisuals();
+            }
+        }
+
+        /// <summary>
+        /// Initialize the hover visual components
+        /// </summary>
+        private void InitializeHoverVisuals()
+        {
+            // Find the slot image component
+            Transform slotTransform = transform.Find(slotImagePath);
+            if (slotTransform != null)
+            {
+                slotImage = slotTransform.GetComponent<Image>();
+                if (slotImage == null)
+                {
+                    Debug.LogError($"No Image component found at path {slotImagePath} on {gameObject.name}");
+                }
+            }
+            else
+            {
+                Debug.LogError($"Could not find child at path {slotImagePath} on {gameObject.name}");
+            }
         }
 
         private void Start()
@@ -66,6 +108,13 @@ namespace Inventory
             // Register this socket with the quest service
             questService?.RegisterSocket(transform);
 
+            // Set the default color for hover visual if enabled
+            if (enableHoverVisual && slotImage != null)
+            {
+                slotImage.color = defaultColor;
+                logger?.Log($"Socket hover visual initialized for {gameObject.name}");
+            }
+
             logger?.Log($"Socket {gameObject.name} initialized and registered");
         }
 
@@ -76,6 +125,14 @@ namespace Inventory
         {
             socketInteractor.selectEntered.AddListener(OnSelectEntered);
             socketInteractor.selectExited.AddListener(OnSelectExited);
+
+            // Subscribe to hover events if hover visual is enabled
+            if (enableHoverVisual)
+            {
+                socketInteractor.hoverEntered.AddListener(OnHoverEntered);
+                socketInteractor.hoverExited.AddListener(OnHoverExited);
+                logger?.Log($"Subscribed to hover events for socket {gameObject.name}");
+            }
 
             // Re-attach the item if we have one and it's not being held by something else
             if (currentHeldItem != null)
@@ -108,6 +165,13 @@ namespace Inventory
             socketInteractor.selectEntered.RemoveListener(OnSelectEntered);
             socketInteractor.selectExited.RemoveListener(OnSelectExited);
 
+            // Unsubscribe from hover events if hover visual is enabled
+            if (enableHoverVisual)
+            {
+                socketInteractor.hoverEntered.RemoveListener(OnHoverEntered);
+                socketInteractor.hoverExited.RemoveListener(OnHoverExited);
+            }
+
             // Apply 10x scale multiplier when socket is disabled to compensate for small parent scale
             if (currentHeldItem != null)
             {
@@ -119,6 +183,30 @@ namespace Inventory
 
                 Debug.Log($"DEBUG [SOCKET DISABLE APPLIED COMPENSATION] Item: {currentHeldItem.name}, New scale: {currentHeldItem.localScale}, Applied {scaleMultiplier}x multiplier");
             }
+        }
+
+        /// <summary>
+        /// Handle when an item hovers over the socket
+        /// </summary>
+        private void OnHoverEntered(HoverEnterEventArgs args)
+        {
+            if (!enableHoverVisual || slotImage == null)
+                return;
+
+            slotImage.color = hoverColor;
+            logger?.Log($"Socket {gameObject.name} hover entered by {args.interactableObject.transform.name}");
+        }
+
+        /// <summary>
+        /// Handle when an item stops hovering over the socket
+        /// </summary>
+        private void OnHoverExited(HoverExitEventArgs args)
+        {
+            if (!enableHoverVisual || slotImage == null)
+                return;
+
+            slotImage.color = defaultColor;
+            logger?.Log($"Socket {gameObject.name} hover exited by {args.interactableObject.transform.name}");
         }
 
         /// <summary>
@@ -218,6 +306,48 @@ namespace Inventory
             {
                 Debug.Log($"DEBUG [NO DETACH] Socket: {gameObject.name}, Item: {selected.name}, Not manually grabbed, scale: {selected.localScale}");
             }
+        }
+
+        /// <summary>
+        /// Set the hover and default colors for the socket
+        /// </summary>
+        public void SetHoverColors(Color hoverColor, Color defaultColor)
+        {
+            this.hoverColor = hoverColor;
+            this.defaultColor = defaultColor;
+
+            // Update current color if available
+            if (slotImage != null)
+            {
+                slotImage.color = defaultColor;
+            }
+        }
+
+        /// <summary>
+        /// Enable or disable hover visual feedback
+        /// </summary>
+        public void SetHoverVisualEnabled(bool enabled)
+        {
+            // If enabling and it was previously disabled, subscribe to events
+            if (enabled && !enableHoverVisual)
+            {
+                if (socketInteractor != null)
+                {
+                    socketInteractor.hoverEntered.AddListener(OnHoverEntered);
+                    socketInteractor.hoverExited.AddListener(OnHoverExited);
+                }
+            }
+            // If disabling and it was previously enabled, unsubscribe from events
+            else if (!enabled && enableHoverVisual)
+            {
+                if (socketInteractor != null)
+                {
+                    socketInteractor.hoverEntered.RemoveListener(OnHoverEntered);
+                    socketInteractor.hoverExited.RemoveListener(OnHoverExited);
+                }
+            }
+
+            enableHoverVisual = enabled;
         }
     }
 }
