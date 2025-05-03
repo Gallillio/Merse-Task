@@ -68,6 +68,8 @@ public class PutItemInInventory : MonoBehaviour
         if (args.interactableObject == null)
             return;
 
+        SoundManager.PlaySound(SoundType.PutItemInInventory);
+
         Transform selected = args.interactableObject.transform;
 
         // Reset manual grab flag when new item enters socket
