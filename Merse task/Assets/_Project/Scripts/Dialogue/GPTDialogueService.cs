@@ -108,7 +108,7 @@ namespace Dialogue
 
             // Store the current response text component
             currentResponseText = responseText;
-            currentResponseText.text = "Thinking...";
+            currentResponseText.text = "Hmmm...";
 
             // Get conversation history for this NPC
             List<ChatMessage> npcHistory = GetConversationHistoryForNPC(npc);
