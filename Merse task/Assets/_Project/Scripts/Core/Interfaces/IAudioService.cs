@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections;
-using System;
 
 namespace Core.Interfaces
 {
@@ -9,11 +8,6 @@ namespace Core.Interfaces
     /// </summary>
     public interface IAudioService
     {
-        /// <summary>
-        /// Event triggered when a sound is played
-        /// </summary>
-        event Action<SoundType> OnSoundPlayed;
-        
         /// <summary>
         /// Play a sound effect or music
         /// </summary>

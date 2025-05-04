@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -29,11 +28,6 @@ namespace Core.Services
         private bool wasBackgroundMusicPlaying = false;
 
         private ILoggingService logger;
-
-        /// <summary>
-        /// Event triggered when a sound is played
-        /// </summary>
-        public event Action<SoundType> OnSoundPlayed;
 
         /// <summary>
         /// Initialize audio sources
@@ -89,9 +83,6 @@ namespace Core.Services
                 primaryAudioSource.PlayOneShot(soundList[(int)type], volume);
                 logger?.Log($"Playing one-shot sound: {type}");
             }
-
-            // Trigger the event
-            OnSoundPlayed?.Invoke(type);
         }
 
         /// <summary>
@@ -119,9 +110,6 @@ namespace Core.Services
             StartCoroutine(ResumeBackgroundMusicAfterDelay(oneTimeAudioSource.clip.length));
 
             logger?.Log("Playing quest complete sound");
-
-            // Trigger the event
-            OnSoundPlayed?.Invoke(Core.Interfaces.SoundType.QuestComplete);
         }
 
         /// <summary>
@@ -147,9 +135,6 @@ namespace Core.Services
             npcVoiceCoroutine = StartCoroutine(StopNPCVoiceAfterDuration(duration));
 
             logger?.Log($"Playing NPC voice for {duration:F2} seconds");
-
-            // Trigger the event
-            OnSoundPlayed?.Invoke(Core.Interfaces.SoundType.NPCTalking);
         }
 
         /// <summary>

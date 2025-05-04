@@ -1,152 +1,250 @@
-# VR Interaction System
+Hey Team 👋
+Make sure to follow the controlling instructions cuz there isnt much UI to help you navigate the game yet.
 
-This project is a Unity VR application featuring interactive NPCs, quests, sound management, and inventory systems. It allows players to interact with NPCs through voice, the NPC responds with a Gemini AI generated Response depending on the NPC, complete quests, and manage items in VR.
+## Table of Contents
 
-## System Overview
+- [Overview](#overview)
+- [Installation](#installation)
+- [Getting Started](#getting-started)
+- [Controls](#controls)
+- [Gameplay](#gameplay)
+- [Features](#features)
+  - [Speech Recognition](#speech-recognition)
+  - [Quest System](#quest-system)
+  - [Inventory System](#inventory-system)
+  - [NPC Dialogue](#npc-dialogue)
+  - [XR Interaction](#xr-interaction)
+  - [Input System](#input-system)
+- [Troubleshooting](#troubleshooting)
+- [Credits](#credits)
 
-### 1. Sound Management System
+## Overview
 
-**Location:** `_Project/Scripts/SoundManager/`
+This immersive VR experience puts you in a vibrant interactive world where you'll communicate with NPCs through natural speech, solve puzzles, complete quests, and manipulate objects in a fully interactive environment. The game combines cutting-edge speech recognition with intuitive VR controls to create a seamless and immersive experience.
 
-The Sound Manager handles all audio playback in the game, including background music, NPC talking sounds, item pickup effects, and quest completion notifications.
+Your mission is to help various NPCs by finding items and completing tasks for them, ultimately unlocking "The Great Wall of America" and discovering what lies beyond.
 
-**Key Features:**
+![Game Overview Screenshot](Assets/Documentation/Images/game_overview.png)
 
-- Background music with automatic looping
-- NPCs have talking sounds with duration based on dialogue length
-- Dynamic volume adjustment (ducking) during conversations
-- Special quest completion sound that temporarily pauses background music
-- Seamless audio transitions between gameplay states
+## Installation
 
-**Key Scripts:**
+### Requirements
 
-- `SoundManager.cs`: Singleton manager that handles all sound playback, providing methods to play sounds with different parameters including looping and volume control.
+- Unity 2021.3 or newer
+- VR Headset (Meta Quest, Valve Index, HTC Vive, etc.)
+- Microphone (integrated or external)
+- Minimum 8GB RAM
+- GPU with VR support
 
-**Sound Types:**
+### Setup Instructions
 
-- `BackgroundMusic`: Ambient music that plays continuously in the background
-- `ItemPickup`: Played when items are collected
-- `NPCTalking`: Voice sounds for NPCs when they're speaking
-- `QuestComplete`: Special sound that plays when a quest is completed
+1. Clone or download this repository
+2. Open the project in Unity
+3. Make sure you have all required packages installed:
+   - XR Interaction Toolkit (version 2.4.3+)
+   - Whisper Speech-to-Text package
+   - [Optional] Speech to Text Showcase asset
+4. Connect your VR headset
+5. Press Play in Unity or build the project for your target platform
 
-**Unity Setup Requirements:**
+## Getting Started
 
-- Requires an AudioSource component on the GameObject
-- Needs AudioClip assets assigned to the soundList array in the Inspector
-- Configurable ducking amount for background music during conversations (0.1-0.9 range)
+When you first launch the game, you'll find yourself in a colorful environment with NPCs waiting to interact with you. Look around to familiarize yourself with your surroundings. NPCs with available quests will have speech bubble indicators above them.
 
-### 2. NPC Interaction System
+Movement is handled through smooth locomotion or teleportation (depending on your settings). You can select your preferred movement style in the settings menu.
 
-**Location:** `_Project/Scripts/NPC/`
+![Getting Started](Assets/Documentation/Images/getting_started.png)
 
-This system enables conversation with NPCs using voice input, processes responses using Google's Gemini API, and manages quest states.
+## Controls
 
-**Key Features:**
+### Basic Controls
 
-- Voice-based conversation with NPCs
-- Sentence-by-sentence text display with advancing via controller button
-- Quest system integrated with dialogues
-- NPC talking sound effects synchronized with text display
-- Background music ducking during conversations
+- **Move**: Use the left thumbstick/joystick
+- **Turn**: Use the right thumbstick/joystick (smooth or snap turning)
+- **Grab Objects**: Grip button (middle finger) on controllers
+- **Select/Use Objects**: Trigger button (index finger) on controllers
+- **Talk to NPCs**: Hold Secondary Button (B/Y) on your controller while near an NPC, then speak into your microphone
+- **UI Interaction**: Primary Button (A/X) or pointing and using trigger
+- **Menu**: Menu button on controllers
 
-**Key Scripts:**
+All buttons can be remapped in the settings if needed. The Input System has been configured to work with most common VR controllers.
 
-- `NPCInteractionManager.cs`: Handles player proximity detection, microphone input, and speech-to-text processing
-- `GPTManager.cs`: Communicates with Google's Gemini API to generate NPC responses
-- `NPCInstruction.cs`: Stores NPC dialogue data and quest information
-- `QuestManager.cs`: Tracks quest progress and inventory items related to quests
-- `QuestSocket.cs`: Helper component for quest-related item detection
+![Control Diagram](Assets/Documentation/Images/controls.png)
 
-**NPC Setup Requirements:**
+## Gameplay
 
-- Each NPC needs an NPCInstruction component with dialogue text
-- For quest NPCs, configure questItemName and completion prompts
-- NPCs should have a spatial panel object for displaying text responses
-- Proper hierarchy with parent NPC object and child interaction manager
+### Talking to NPCs
 
-### 3. Inventory System
+1. Approach an NPC (you'll see a dialog indicator when close enough)
+2. Press and hold the Secondary Button (B/Y) on your controller
+3. Speak naturally into your microphone - the microphone icon will show when active
+4. Release the button when finished speaking
+5. The NPC will process your speech and respond appropriately
+6. Continue the conversation to learn about quests and the world
 
-**Location:** `_Project/Scripts/Inventory/`
+The speech recognition system will understand natural language, so you can phrase your questions and responses in different ways.
 
-This system allows players to pick up, store, and manage items in VR, including quest items.
+![NPC Interaction](Assets/Documentation/Images/npc_interaction.png)
 
-**Key Features:**
+### Completing Quests
 
-- Socket-based inventory system allowing items to be placed in specific locations
-- Sound effects for item pickup events
-- Item scaling and parent management when stored in inventory
-- Detection of items for quest completion
+1. Talk to NPCs to receive quests (they'll tell you what they need)
+2. Listen carefully to their requests - quests are tracked automatically
+3. Explore the world to find the required items or complete objectives
+4. Collect items by grabbing them with your controller's grip button
+5. Return to NPCs with completed objectives
+6. Either place requested items in their designated socket areas or speak to the NPC about the quest
 
-**Key Scripts:**
+Quests have multiple stages and can lead to new areas and discoveries. Completing all quests will unlock "The Great Wall of America" and reveal the game's conclusion.
 
-- `PutItemInInventory.cs`: Core inventory script that handles storing items in sockets
-- `FistInventory.cs`: Specialized inventory script for items held directly
+![Quest Completion](Assets/Documentation/Images/quest_completion.png)
 
-**Inventory Setup Requirements:**
+### Inventory Management
 
-- Requires XR Socket Interactors for item placement
-- Items must have appropriate XR Interactable components
-- Reference to a "Collectables" GameObject for item organization
+1. Grab items by using the grip button when your hand is near them
+2. Items are automatically stored in your inventory when grabbed
+3. To use an item from inventory, grab it from your inventory slots
+4. You can examine items by bringing them closer to your face
+5. Return items to the world by releasing the grip button
+6. Place quest items in designated sockets to complete objectives
 
-### 4. VR Interaction Utilities
+The inventory system allows you to carry multiple items at once, eliminating the need to make several trips when collecting quest items.
 
-**Location:** `_Project/Scripts/`
+![Inventory System](Assets/Documentation/Images/inventory.png)
 
-Supporting scripts that enhance VR functionality and player experience.
+## Features
 
-**Key Scripts:**
+### Speech Recognition
 
-- `AnimateHand.cs`: Animates hand models based on controller input (grip and trigger)
-- `HMDInfoManager.cs`: Detects and logs VR headset information
+The game uses Whisper speech-to-text technology to enable natural conversations with NPCs. This system:
 
-**Setup Requirements:**
+- Processes your speech in real-time with high accuracy
+- Detects when you've stopped speaking to avoid cutting you off
+- Converts speech to text for NPC interactions
+- Works with various accents and languages
+- Provides visual feedback when listening via a microphone icon
+- Uses voice activity detection (VAD) to filter out background noise
+- Processes contextual understanding to make conversations feel natural
 
-- AnimateHand requires an Animator component and properly configured hand animations
-- Both scripts need appropriate references set in the Inspector
+This speech system allows you to ask questions and give responses in your own words, creating a more immersive and natural interaction than traditional dialogue trees.
 
-## Quest System Details
+![Speech Recognition](Assets/Documentation/Images/speech_recognition.png)
 
-Quests are managed through NPCs and involve finding specific items:
+### Quest System
 
-1. Initial interaction with an NPC activates their quest
-2. Quest information is stored in NPCInstruction components
-3. Player must find the requested quest item in the world
-4. When returning with the correct item, the quest is marked as completed
-5. Quest completion may activate a reward object on the NPC
-6. The quest item is removed from player inventory upon completion
+The dynamic quest system features:
 
-**Quest Completion Process:**
+- Multiple NPCs with unique quests and personalities
+- Contextual quest tracking that remembers your progress
+- Quests that require specific items to be collected and delivered
+- Multi-stage quests with progressive challenges
+- A central quest completion tracker that handles game progression
+- Visual indicators showing active and completed quests
+- Automatic quest activation when speaking with NPCs
+- A final objective that unlocks when all other quests are completed
 
-1. Player approaches NPC with the quest item in inventory
-2. System automatically detects the item and completes the quest
-3. Quest completion dialogue is shown
-4. Quest completion sound plays
-5. Reward object is activated (if configured)
+The quest system drives the game's progression and encourages exploration of the environment to find all required items.
 
-## Audio Behavior Details
+![Quest System](Assets/Documentation/Images/quest_system.png)
 
-The audio system features sophisticated behavior:
+### Inventory System
 
-1. Background music plays continuously during gameplay
-2. When conversation starts, background music volume is reduced
-3. During NPC dialogue, talking sounds play with duration based on text length
-4. Volume remains reduced throughout the entire conversation
-5. When conversation ends, background music returns to normal volume
-6. For quest completion, special sound plays while background music is temporarily paused
-7. If player walks away mid-conversation, all audio returns to normal state
+The socket-based inventory system provides:
 
-## Technical Requirements
+- Intuitive object grabbing and manipulation
+- Dedicated inventory slots for storing collected items
+- Visual feedback when items are selected or stored
+- Proper physics interactions with objects
+- Scale adjustments when items are stored and retrieved
+- Integration with the quest system for item tracking
+- A simple way to return items to the world when needed
 
-- Unity with XR Interaction Toolkit
-- Google Gemini API key for NPC conversations
-- Whisper speech-to-text system for voice input
-- AudioMixer setup for sound management
-- Properly configured XR Rig with controllers
+The inventory makes collecting and managing quest items intuitive and immersive, with full physics support for realistic interactions.
 
-## Integration Notes
+![Inventory System Detail](Assets/Documentation/Images/inventory_detail.png)
 
-- The system uses Unity's new Input System for controller input
-- Sound Manager is designed as a singleton for easy access from any script
-- NPCs use a spatial UI system for displaying text
-- Inventory uses Unity's XR Socket Interactor system
-- Voice detection uses Voice Activity Detection (VAD) for better performance
+### NPC Dialogue
+
+The dialogue system offers:
+
+- Natural language processing for realistic conversations
+- Contextual responses based on your quest progress
+- NPCs that remember previous interactions
+- Visual feedback during conversations through UI elements
+- Character-specific dialogue styles and personalities
+- Seamless integration with the Whisper speech recognition system
+- Automatic quest updates based on conversation content
+
+NPCs respond differently depending on your progress in the game, creating a dynamic narrative experience.
+
+![NPC Dialogue System](Assets/Documentation/Images/dialogue_system.png)
+
+### XR Interaction
+
+The XR interaction system provides:
+
+- Intuitive grabbing and manipulation of objects
+- Physical interactions with all items in the environment
+- Haptic feedback for more immersive interactions
+- Teleportation and smooth locomotion options
+- UI interaction through pointing and selection
+- Object highlighting when interactive elements are nearby
+- Socket interactions for inventory and quest completion
+
+Based on Unity's XR Interaction Toolkit, the system makes interacting with the virtual world feel natural and responsive.
+
+![XR Interaction](Assets/Documentation/Images/xr_interaction.png)
+
+### Input System
+
+The game uses Unity's new Input System with complete controller mapping:
+
+- Fully customizable button mappings
+- Support for all major VR controllers
+- Adaptive bindings that work across different devices
+- Proper Secondary Button support for microphone activation
+- Debug tools for testing button inputs
+- Integration with XR Interaction Toolkit
+- Automatic fallbacks for different controller types
+
+The input system has been carefully configured to ensure all buttons work correctly across different VR platforms.
+
+![Input System](Assets/Documentation/Images/input_system.png)
+
+## Troubleshooting
+
+### Microphone Not Working
+
+- Ensure your microphone is properly connected and enabled
+- Check microphone permissions in your operating system
+- Verify the correct microphone is selected in Unity's audio settings
+- Try speaking louder or in a quieter environment
+- Restart the game if speech recognition becomes unresponsive
+- Check that you're holding the Secondary Button (B/Y) while speaking
+
+### VR Controls Issues
+
+- Ensure your controllers are properly paired and charged
+- If certain buttons don't work, use the included InputBindingFixer component to add proper XR bindings
+- Check controller bindings in the SteamVR or Oculus settings
+- Restart your VR headset if buttons aren't responding
+- Test with the included InputTester scene to verify all buttons are functioning
+- For Oculus Quest users, make sure you have the latest firmware
+
+### Performance Problems
+
+- Reduce graphics settings if the game is running slowly
+- Close other applications running in the background
+- Ensure your computer meets the minimum requirements
+- Try reducing the physical objects in the scene
+- Lower the quality settings of the speech recognition if needed
+- For Quest users, ensure proper cooling and battery level
+
+## Credits
+
+- Game Design & Development: [Your Name/Team]
+- Speech Recognition: Whisper by OpenAI
+- XR Interaction Framework: Unity XR Interaction Toolkit
+- 3D Models: [List sources]
+- Audio: [List sources]
+- Special Thanks: [Acknowledgements]

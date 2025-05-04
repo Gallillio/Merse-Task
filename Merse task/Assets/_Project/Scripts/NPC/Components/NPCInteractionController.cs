@@ -539,10 +539,16 @@ public class NPCInteractionController : MonoBehaviour
                 audioService.Play(Core.Interfaces.SoundType.QuestComplete);
                 justCompletedQuest = false; // Reset the flag
                 loggingService.Log("Playing quest completion sound");
+            }
 
-                // Note: We don't need to activate particles here
-                // The QuestParticleEffectsController will handle this automatically
-                // when it receives the sound event from the AudioService
+            // Hide the panel immediately instead of using a delay
+            instructionUI.HideSpatialPanel();
+            audioService.EndConversation();
+
+            // End this conversation
+            if (activeConversationManager != null)
+            {
+                activeConversationManager.EndConversation();
             }
         }
     }
