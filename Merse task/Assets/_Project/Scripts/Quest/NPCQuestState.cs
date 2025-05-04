@@ -45,6 +45,7 @@ namespace Quest
         private IQuestService questService;
         private IAudioService audioService;
         private ILoggingService logger;
+        private QuestParticleEffectsController particleEffectsController;
 
         /// <summary>
         /// Initialize and get service references
@@ -54,6 +55,15 @@ namespace Quest
             questService = ServiceLocator.Get<IQuestService>();
             audioService = ServiceLocator.Get<IAudioService>();
             logger = ServiceLocator.Get<ILoggingService>();
+
+            // Get or add the particle effects controller
+            particleEffectsController = GetComponent<QuestParticleEffectsController>();
+            if (particleEffectsController == null && hasQuest)
+            {
+                // Auto-add the component if this NPC has a quest
+                particleEffectsController = gameObject.AddComponent<QuestParticleEffectsController>();
+                logger?.Log($"Added QuestParticleEffectsController to {gameObject.name}");
+            }
 
             // Hide the reward object initially
             if (questRewardObject != null)
