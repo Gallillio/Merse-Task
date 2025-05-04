@@ -27,7 +27,7 @@ You'll be interacting with NPCs through natural speech, and they will be respond
 
 ### Requirements
 
-- Unity 2021.3 or newer
+- Unity 6
 - VR Headset (Meta Quest, Valve Index, HTC Vive, etc.)
 - Microphone
 
